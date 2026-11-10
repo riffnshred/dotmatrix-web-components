@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Matrix 01 Sign In</title>
+<!--
+  Example: the sign-in page of a device. The form is a plain HTML form that
+  posts username, password and remember to /login, so the server needs no
+  JavaScript to handle it (htmx works too: add hx-post="/login" to the form).
+
+  The script at the bottom fakes the server for this demo: sign in as admin
+  with the password matrix. On a device, delete it and let the form post.
+-->
+<script src="../dotmatrix.js"></script>
+<style>
+  /* Single dark look by choice, set unlayered so a host page's reset cannot override it. */
+  :root{color-scheme:dark}
+  html,body{background:#000000}
+  .login{max-width:400px}
+  form{display:flex;flex-direction:column;gap:calc(var(--dot-pitch,2px) * 10)}
+  /* A button sizes itself; in a column it would otherwise stretch past its pill. */
+  form dot-button{align-self:flex-start}
+</style>
+</head>
+<body>
+<dot-app>
+  <dot-bar label="Matrix 01">
+    <dot-status slot="end" state="online"></dot-status>
+  </dot-bar>
+
+  <dot-panel class="login" label="Sign in" level="1" note="Sign in to change this panel's settings.">
+    <form id="login" method="post" action="/login">
+      <dot-input label="Username">
+        <input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+      </dot-input>
+      <dot-input label="Password" id="password">
+        <input type="password" name="password" autocomplete="current-password" required>
+      </dot-input>
+      <dot-toggle name="remember" label="Stay signed in"></dot-toggle>
+      <dot-text id="result" role="alert" hidden></dot-text>
+      <dot-button type="submit" variant="primary" icon="unlock">Sign in</dot-button>
+    </form>
+  </dot-panel>
+
+  <dot-text muted class="login">Demo: sign in as admin with the password matrix.</dot-text>
+</dot-app>
+<script>
+  // Demo only: stands in for the device's /login handler.
+  const form = document.getElementById('login');
+  const result = document.getElementById('result');
+  const password = document.getElementById('password');
+  const button = form.querySelector('dot-button');
+  const say = (tone, text) => {
+    result.setAttribute('tone', tone);
+    result.setAttribute('text', text);
+    result.hidden = !text;
+  };
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const data = new FormData(form);
+    button.loading = true;
+    say('ok', '');
+    setTimeout(() => {
+      button.loading = false;
+      if (data.get('username') === 'admin' && data.get('password') === 'matrix') {
+        say('ok', data.get('remember') ? 'Signed in for 30 days.' : 'Signed in.');
+        return;
+      }
+      say('err', 'Wrong username or password.');
+      password.setAttribute('tone', 'err');
+      const input = password.querySelector('input');
+      input.setAttribute('aria-invalid', 'true');
+      input.focus();
+      input.select();
+    }, 900);
+  });
+
+  // The error clears as soon as the password changes.
+  password.addEventListener('input', () => {
+    password.removeAttribute('tone');
+    password.querySelector('input').removeAttribute('aria-invalid');
+  });
+</script>
+</body>
+</html>

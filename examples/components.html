@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dotmatrix Components</title>
+<!--
+  A demo of every Dotmatrix component.
+  #check brightens the unlit grid so any dot off the grid shows up,
+  and paints characters the fonts lack in the error colour.
+-->
+<script src="../dotmatrix.js"></script>
+<style>
+  /* Single dark look by choice, set unlayered so a host page's reset cannot override it. */
+  :root{color-scheme:dark}
+  html,body{background:#000000}
+  .plain{margin:0;color:#9A9A95;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .odd{height:17.5px;background:#1A1A1A}
+  .stage{margin-left:13.3px;padding:9.7px 11px;display:flex;flex-direction:column;gap:calc(var(--dot-pitch,2px) * 6)}
+  /* --dot-min is inherited, so reset it for the grids nested inside the panels. */
+  .panels{--dot-min:320px}
+  .panels > *{--dot-min:140px}
+  .stack{display:flex;flex-direction:column;gap:calc(var(--dot-pitch,2px) * 10)}
+  .icons{--dot-min:120px;--dot-gap:calc(var(--dot-pitch,2px) * 8)}
+  .controls{--dot-min:220px}
+  .icon{display:flex;flex-direction:column;gap:calc(var(--dot-pitch,2px) * 4)}
+</style>
+</head>
+<body>
+<dot-app>
+  <dot-bar label="Dotmatrix">
+    <dot-status slot="end" id="conn" state="online"></dot-status>
+  </dot-bar>
+
+  <dot-text muted id="info">Measuring the grid...</dot-text>
+  
+  <dot-grid class="panels" cols="2">
+    <dot-panel label="Headings">
+      <dot-heading size="xl">XL x4</dot-heading>
+      <dot-heading size="l" level="3">Large x3 wraps at word boundaries</dot-heading>
+      <dot-heading level="3">Default x2 with an <em>accent</em> word</dot-heading>
+      <dot-heading size="s" tone="ok" level="3">Small x1 in the ok tone</dot-heading>
+    </dot-panel>
+
+    <dot-panel label="Text">
+      <dot-text>Longer notes wrap at word boundaries. The quick brown fox jumps over the lazy dog; judge the body text at arm's length. Numbers line up: 0123456789.</dot-text>
+      <dot-text muted>Muted, for labels and notes.</dot-text>
+      <dot-text tone="warn">Fan at 82%, in the warn tone</dot-text>
+      <dot-text size="l">Body text at x2</dot-text>
+    </dot-panel>
+
+    <dot-panel label="Typography" note="Accents are built from the letter and a mark. A box stands in for what the fonts lack; #check paints it red.">
+      <dot-heading level="3">Été à Montréal</dot-heading>
+      <dot-text lang="fr">L&rsquo;été, ça va très bien&#8239;! &laquo;&#8239;Où êtes-vous&#8239;?&#8239;&raquo; Noël, maïs, cœur, Ça, Ève, Île, À bientôt&hellip;</dot-text>
+      <dot-text>&ldquo;Curly quotes&rdquo; and &lsquo;single&rsquo; ones, an en dash (9&ndash;5), an em dash&mdash;and an ellipsis&hellip;</dot-text>
+      <dot-text muted>{a: 1} ~/blog C:\ `x` &middot; &bull; &euro;20 &middot; &trade; &frac12; &#64257; &minus; &copy; &middot; &#x1F642;</dot-text>
+      <dot-grid row>
+        <dot-button>Éditer</dot-button>
+        <dot-badge>Été</dot-badge>
+        <dot-led tone="ok">Allumé</dot-led>
+        <dot-status state="online" label="Connecté"></dot-status>
+      </dot-grid>
+      <dot-marquee lang="fr">ÉTÉ À MONTRÉAL&#8239;: ÇA VA, FRANÇAIS, NOËL, CŒUR</dot-marquee>
+    </dot-panel>
+
+    <dot-panel label="Values" note="dot-value: a label, the value, a unit and a note.">
+      <dot-value label="Temperature" value="23.4" unit="&deg;C" note="Panel sensor, updated every second" id="temp"></dot-value>
+      <dot-grid>
+        <dot-value label="Frame rate" value="60" unit="fps" size="s"></dot-value>
+        <dot-value label="Fan" value="82" unit="%" size="s" tone="warn"></dot-value>
+      </dot-grid>
+    </dot-panel>
+
+    <dot-panel label="Buttons">
+      <dot-grid row>
+        <dot-button variant="primary">Apply</dot-button>
+        <dot-button>Reset</dot-button>
+        <dot-button variant="ghost">Cancel</dot-button>
+        <dot-button icon="power" title="Power"></dot-button>
+      </dot-grid>
+      <dot-grid row>
+        <dot-button icon="download" id="save">Save</dot-button>
+        <dot-button size="s">Small</dot-button>
+        <dot-button size="l" variant="primary">Large</dot-button>
+        <dot-button disabled>Disabled</dot-button>
+      </dot-grid>
+      <dot-text muted id="btn-log">Press a button. Save shows the loading state.</dot-text>
+    </dot-panel>
+
+    <dot-panel label="Sliders">
+      <dot-slider label="Brightness" unit="%" value="72"></dot-slider>
+      <dot-slider label="Scroll speed" min="0" max="10" step="0.5" value="4"></dot-slider>
+      <dot-slider variant="level" label="Volume" value="60"></dot-slider>
+      <dot-slider label="Disabled" value="30" disabled></dot-slider>
+      <dot-text muted id="slider-log">Drag, or focus and use the arrow keys.</dot-text>
+    </dot-panel>
+
+    <dot-panel label="Toggles">
+      <dot-toggle label="Auto dim" checked></dot-toggle>
+      <dot-toggle label="Night mode"></dot-toggle>
+      <dot-toggle label="Locked" checked disabled></dot-toggle>
+      <dot-text muted id="toggle-log">Click a row, or focus it and press Space.</dot-text>
+    </dot-panel>
+
+    <dot-panel label="Inputs" note="dot-input draws a native input in dots.">
+      <dot-input label="Device name"><input name="device" value="Matrix 01" autocomplete="off"></dot-input>
+      <dot-input label="Wi-Fi password" note="8 characters or more.">
+        <input type="password" name="wifi" minlength="8" placeholder="Not set" autocomplete="new-password">
+      </dot-input>
+      <dot-input label="Data hub" tone="err" note="Cannot reach this address."><input name="hub" value="hub.local:8080"></dot-input>
+      <dot-input label="Serial number"><input value="DM-0042" disabled></dot-input>
+    </dot-panel>
+
+    <dot-panel label="Status">
+      <dot-grid row>
+        <dot-status state="online"></dot-status>
+        <dot-status state="connecting"></dot-status>
+        <dot-status state="offline"></dot-status>
+        <dot-status state="error"></dot-status>
+      </dot-grid>
+      <dot-grid row>
+        <dot-led tone="ok">Power</dot-led>
+        <dot-led tone="warn" blink>Busy</dot-led>
+        <dot-led tone="err" blink="fast">Fault</dot-led>
+        <dot-led tone="off">Idle</dot-led>
+      </dot-grid>
+      <dot-grid row>
+        <dot-badge>v0.4</dot-badge>
+        <dot-badge tone="ok">Ready</dot-badge>
+        <dot-badge tone="warn">82%</dot-badge>
+        <dot-badge tone="err">Fault</dot-badge>
+        <dot-badge accent>New</dot-badge>
+      </dot-grid>
+      <dot-grid row>
+        <dot-button size="s" id="cycle">Cycle state</dot-button>
+        <dot-text muted>Changes the status in the top bar.</dot-text>
+      </dot-grid>
+    </dot-panel>
+
+    <dot-panel label="Form" note="A native form: FormData and htmx see every control.">
+      <form id="form" class="stack">
+        <dot-input label="Scroll text"><input name="text" value="Hello" autocomplete="off"></dot-input>
+        <dot-slider name="brightness" label="Brightness" unit="%" value="72"></dot-slider>
+        <dot-toggle name="autodim" label="Auto dim" checked></dot-toggle>
+        <dot-grid row>
+          <dot-button type="submit" variant="primary">Apply</dot-button>
+          <dot-button type="reset">Reset</dot-button>
+        </dot-grid>
+        <dot-text muted id="form-log">Apply to see the form data.</dot-text>
+      </form>
+    </dot-panel>
+
+    <dot-panel label="Collapsible" collapsible open>
+      <dot-text>A collapsible panel folds to its title line. Click the title to close this one.</dot-text>
+      <dot-rule dotted></dot-rule>
+      <dot-text muted>dot-rule draws a divider, solid or dotted.</dot-text>
+      <dot-rule></dot-rule>
+    </dot-panel>
+  </dot-grid>
+
+  <dot-panel label="Marquee" note="dot-marquee moves its text through a window, one dot at a time. A mouse over it holds it.">
+    <dot-marquee id="marquee">Matrix 01 is <em>live</em>: brightness 72%, panel at 23.4&deg;C</dot-marquee>
+    <dot-grid class="controls" cols="3">
+      <dot-input label="Message"><input id="marquee-text" value="Matrix 01 is live: brightness 72%, panel at 23.4&deg;C" autocomplete="off"></dot-input>
+      <dot-slider id="marquee-speed" label="Speed" unit=" px/s" min="0" max="60" value="20"></dot-slider>
+      <dot-toggle id="marquee-pause" label="Paused"></dot-toggle>
+    </dot-grid>
+    <dot-marquee size="s" font="body" tone="ok" speed="30">The body font at x1 in the ok tone, at 30 px a second. Long messages scroll off to the left and come back in from the right.</dot-marquee>
+  </dot-panel>
+
+  <dot-panel label="Icons" id="icons-panel">
+    <dot-grid class="icons" id="icons"></dot-grid>
+  </dot-panel>
+
+  <dot-panel label="Grid check" note="Every dot on this page sits on one grid.">
+    <p class="plain">Plain HTML sits between components. The grey bar below is 17.5 px tall, so the next components must snap back onto the grid.</p>
+    <div class="odd"></div>
+    <dot-text>This line comes after the odd-height bar and still sits on the grid.</dot-text>
+    <p class="plain">An embedded &lt;dot-matrix&gt; at an odd offset has its own grid:</p>
+    <dot-matrix class="stage">
+      <dot-heading size="m">Embedded</dot-heading>
+      <dot-text>Aligned to the grid of its own surface.</dot-text>
+    </dot-matrix>
+  </dot-panel>
+</dot-app>
+<script>
+  const $ = id => document.getElementById(id);
+  const say = (id, s) => $(id).setAttribute('text', s);
+
+  if (location.hash === '#check') {
+    document.documentElement.style.setProperty('--dot-unlit', '0.45');
+    document.documentElement.style.setProperty('--dot-check', '1');
+    Dotmatrix.refresh();
+  }
+  const report = () => {
+    const p = Dotmatrix.pitch;
+    say('info', `DPR ${+p.dpr.toFixed(3)}, pitch ${p.device} device px = ${+p.css.toFixed(2)} px, dot ${p.dot} device px. Viewport ${innerWidth} px wide.`);
+  };
+  addEventListener('resize', () => requestAnimationFrame(report));
+  requestAnimationFrame(report);
+
+  // Buttons: log each press; Save shows the loading state for a moment.
+  $('btn-log').closest('dot-panel').addEventListener('click', e => {
+    const b = e.target.closest('dot-button');
+    if (!b) return;
+    const name = b.textContent.trim() || b.title;
+    say('btn-log', `click: ${name}`);
+    if (b.id === 'save') {
+      b.loading = true;
+      setTimeout(() => { b.loading = false; say('btn-log', 'Saved.'); }, 1600);
+    }
+  });
+
+  // Sliders and toggles: input while moving, change when done.
+  const logControls = (logId, read) => {
+    const panel = $(logId).closest('dot-panel');
+    for (const type of ['input', 'change']) {
+      panel.addEventListener(type, e => say(logId, `${type}: ${e.target.getAttribute('label')} = ${read(e.target)}`));
+    }
+  };
+  logControls('slider-log', s => s.value);
+  logControls('toggle-log', t => (t.checked ? 'on' : 'off'));
+
+  // Status: cycle the bar's connection state.
+  const states = ['online', 'connecting', 'offline', 'error'];
+  $('cycle').addEventListener('click', () => {
+    const c = $('conn');
+    c.state = states[(states.indexOf(c.state) + 1) % states.length];
+  });
+
+  // Form: show what FormData collects. An unchecked toggle sends nothing.
+  $('form').addEventListener('submit', e => {
+    e.preventDefault();
+    const pairs = [...new FormData(e.target)].map(([k, v]) => `${k}=${v}`);
+    say('form-log', 'Sent: ' + (pairs.join(', ') || 'nothing'));
+  });
+  $('form').addEventListener('reset', () => setTimeout(() => say('form-log', 'Reset to the starting values.')));
+
+  // Marquee: the message, speed and pause come from the controls below it.
+  const marquee = $('marquee');
+  $('marquee-text').addEventListener('input', e => marquee.setAttribute('text', e.target.value));
+  $('marquee-speed').addEventListener('input', e => { marquee.speed = e.target.value; });
+  $('marquee-pause').addEventListener('change', e => { marquee.paused = e.target.checked; });
+
+  // Values: a live reading.
+  setInterval(() => $('temp').setAttribute('value', (22 + Math.random() * 3).toFixed(1)), 1000);
+
+  // Icons: the gallery builds itself from Dotmatrix.icons.
+  const grid = $('icons');
+  $('icons-panel').setAttribute('note', `${Dotmatrix.icons.length} icons, 7 x 7 dots, shown at x2.`);
+  for (const name of Dotmatrix.icons) {
+    const cell = document.createElement('div');
+    cell.className = 'icon';
+    const icon = document.createElement('dot-icon');
+    icon.setAttribute('name', name);
+    icon.setAttribute('size', 'l');
+    const label = document.createElement('dot-text');
+    label.setAttribute('muted', '');
+    label.setAttribute('text', name);
+    cell.append(icon, label);
+    grid.append(cell);
+  }
+</script>
+</body>
+</html>
