@@ -118,6 +118,7 @@
         <li><a href="#slider">Slider</a></li>
         <li><a href="#toggle">Toggle</a></li>
         <li><a href="#input">Input</a></li>
+        <li><a href="#select">Select</a></li>
       </ul>
       <p>Status</p>
       <ul>
@@ -404,7 +405,7 @@
       <!-- ============================== Controls ============================== -->
       <section id="button">
         <dot-heading size="l">Button</dot-heading>
-        <p><code>&lt;dot-button&gt;</code> A pill-shaped button. With <code>type="submit"</code> or <code>"reset"</code> it acts on its form, and Enter in one of the form's fields submits it, as with a native button. It adds no name or value to the form data.</p>
+        <p><code>&lt;dot-button&gt;</code> A pill-shaped button. With <code>type="submit"</code> or <code>"reset"</code> it acts on its form, and Enter in one of the form's fields submits it, as with a native button. It adds no name or value to the form data. With <code>href</code> it is a link drawn as a button, for moving between pages: it opens in a new tab and goes in the history like any link.</p>
         <script type="text/plain" class="api">
           label    | text | The label, when it is not the content.
           variant  | `primary`, `ghost` | An accent fill, or no outline. An outline when unset.
@@ -412,7 +413,9 @@
           icon     | an icon name | An icon before the label. With no label, the button is round.
           title    | text | Names an icon-only button.
           type     | `submit`, `reset` | Submits or resets its form.
-          disabled | boolean | Greyed out; ignores clicks.
+          href     | URL | Makes it a link to this page.
+          target, rel, download | text | As on a link, with `href`.
+          disabled | boolean | Greyed out; ignores clicks. A disabled link goes nowhere.
           loading  | boolean | A busy animation; ignores clicks.
         </script>
         <p>JS: the <code>disabled</code> and <code>loading</code> properties; listen for <code>click</code>.</p>
@@ -431,6 +434,13 @@
             <dot-button icon="power" title="Power"></dot-button>
             <dot-button disabled>Disabled</dot-button>
             <dot-button loading>Saving</dot-button>
+          </dot-grid>
+        </script>
+        <script type="text/plain" class="ex" data-title="Links">
+          <dot-grid row>
+            <dot-button href="#select" icon="forward">Select</dot-button>
+            <dot-button href="examples/login.html" variant="ghost">Sign-in example</dot-button>
+            <dot-button href="#" icon="home" title="Home"></dot-button>
           </dot-grid>
         </script>
       </section>
@@ -501,6 +511,42 @@
         </script>
       </section>
 
+      <section id="select">
+        <dot-heading size="l">Select</dot-heading>
+        <p><code>&lt;dot-select&gt;</code> A drop-down drawn in dots around a native <code>&lt;select&gt;</code>. The select lies invisibly over the field and does the real work: a tap opens the platform's own picker (a wheel or a sheet on a phone), and forms and htmx post it like any select. So <code>name</code>, <code>required</code>, <code>disabled</code>, the options and <code>hx-*</code> go on the select. An option with an empty value draws dim, as a placeholder. One choice only: <code>multiple</code> and <code>size</code> are not drawn.</p>
+        <script type="text/plain" class="api">
+          label | text | Above the field. It also names the select for screen readers.
+          note  | text | Below the field.
+          tone  | `accent`, `ok`, `warn`, `err` | Colours the frame and note.
+        </script>
+        <p>JS: setting <code>select.value</code> from a script does not repaint the dots. Set <code>dotSelect.value</code> instead, or call <code>dotSelect.render()</code>. Changes to the options repaint by themselves.</p>
+        <script type="text/plain" class="ex" data-title="Choice, placeholder, error, disabled">
+          <dot-select label="Clock">
+            <select name="clock">
+              <option value="12">12-hour</option>
+              <option value="24" selected>24-hour</option>
+            </select>
+          </dot-select>
+          <dot-select label="Favourite team" note="Its games come first.">
+            <select name="team">
+              <option value="">Pick a team</option>
+              <option value="MTL">Montr&eacute;al Canadiens</option>
+              <option value="TOR">Toronto Maple Leafs</option>
+            </select>
+          </dot-select>
+          <dot-select label="Adapter" tone="err" note="This panel needs the PWM mod.">
+            <select name="adapter">
+              <option value="regular">Direct wiring</option>
+              <option value="adafruit-hat" selected>Adafruit HAT</option>
+              <option value="adafruit-hat-pwm">Adafruit HAT with PWM</option>
+            </select>
+          </dot-select>
+          <dot-select label="Panel">
+            <select disabled><option>64 x 32</option></select>
+          </dot-select>
+        </script>
+      </section>
+
       <!-- ============================== Status ============================== -->
       <section id="status">
         <dot-heading size="l">Status</dot-heading>
@@ -564,7 +610,7 @@
       <!-- ============================== Guides ============================== -->
       <section id="forms">
         <dot-heading size="l">Forms and htmx</dot-heading>
-        <p>Sliders and toggles are form controls, and <code>&lt;dot-input&gt;</code> wraps a real input, so a plain <code>&lt;form&gt;</code> posts them all and <code>FormData</code> reads them. Try it: Apply shows what the form would send.</p>
+        <p>Sliders and toggles are form controls, and <code>&lt;dot-input&gt;</code> and <code>&lt;dot-select&gt;</code> wrap a real input and select, so a plain <code>&lt;form&gt;</code> posts them all and <code>FormData</code> reads them. Try it: Apply shows what the form would send.</p>
         <script type="text/plain" class="ex" data-title="Form">
           <form>
             <dot-grid cols="1">
@@ -595,7 +641,7 @@
         <ul>
           <li>Give sliders and toggles <code>hx-trigger="change"</code>. Without it, htmx waits for a click.</li>
           <li>An unchecked toggle sends nothing, like a checkbox.</li>
-          <li>On <code>&lt;dot-input&gt;</code>, <code>name</code> and <code>hx-*</code> go on the inner <code>&lt;input&gt;</code>.</li>
+          <li>On <code>&lt;dot-input&gt;</code> and <code>&lt;dot-select&gt;</code>, <code>name</code> and <code>hx-*</code> go on the inner <code>&lt;input&gt;</code> or <code>&lt;select&gt;</code>. A select sends on <code>change</code> by itself.</li>
           <li>To post a whole form, put <code>hx-post</code> on the <code>&lt;form&gt;</code> and use a <code>type="submit"</code> button.</li>
         </ul>
         <p>Or listen from a script. Every control fires <code>input</code> while it changes and <code>change</code> when it is done:</p>

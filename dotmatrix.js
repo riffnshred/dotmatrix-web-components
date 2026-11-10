@@ -1,9 +1,9 @@
 /*!
- * Dotmatrix v0.4.3 - dot-matrix web components for LED panel control pages.
+ * Dotmatrix v0.5.0 - dot-matrix web components for LED panel control pages.
  * The page is one grid of dots, like the HUB75 panels it controls.
  * Surfaces: <dot-matrix>, <dot-app>
  * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-marquee>
- * Controls: <dot-button>, <dot-slider>, <dot-toggle>, <dot-input>
+ * Controls: <dot-button>, <dot-slider>, <dot-toggle>, <dot-input>, <dot-select>
  * Status:   <dot-led>, <dot-badge>, <dot-status>
  * Layout:   <dot-bar>, <dot-panel>, <dot-grid>, <dot-rule>
  * No dependencies. Drop in with <script src="dotmatrix.js"></script>
@@ -604,10 +604,13 @@
     if (started) return;
     started = true;
     updatePitch();
-    // Anything that can move a component: DOM changes, page size, window size, zoom.
+    // Anything that can move a component: DOM changes, page size, window size, zoom, and
+    // scrolling, which moves a sticky or fixed box against its surface's grid. Captured, so a
+    // scrolling box inside the page counts too. Only what moved is placed again.
     new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true, attributes: true, characterData: true });
     ro.observe(document.documentElement);
     addEventListener('resize', onResize);
+    addEventListener('scroll', schedule, { capture: true, passive: true });
     watchDpr();
   }
 
@@ -1010,7 +1013,9 @@
    * outline; primary a dim accent fill with an accent edge; ghost the
    * label alone. Pressed, it fills and knocks the label out. With an
    * icon and no text it is round, and its title names it. It is
-   * form-associated: type="submit" or "reset" acts on its form.
+   * form-associated: type="submit" or "reset" acts on its form. With
+   * `href` it is a link instead: the same dots around a real <a>, so
+   * open-in-new-tab and the browser's history work.
    * ================================================================== */
   const BUTTON_H = { s: 32, m: 40, l: 52 };
   // Browsers submit a form on Enter only through a native submit button. When a form's first
@@ -1034,15 +1039,16 @@
     static textAttr = 'label';
     static delegatesFocus = true;
     static formAssociated = true;
-    static observedAttributes = ['label', 'icon', 'title', 'variant', 'size', 'disabled', 'loading'];
+    static observedAttributes = ['label', 'icon', 'title', 'variant', 'size', 'disabled', 'loading',
+      'href', 'target', 'rel', 'download'];
     static css = `
       :host{display:inline-block;vertical-align:middle}
-      button{all:unset;display:block;position:relative;cursor:pointer;border-radius:999px;
+      button,a{all:unset;display:block;position:relative;cursor:pointer;border-radius:999px;
         touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-      button::before{${HIT}}
-      button:focus-visible{${FOCUS}}
-      button:disabled{cursor:default}
-      :host([loading]) button{cursor:progress}
+      button::before,a::before{${HIT}}
+      button:focus-visible,a:focus-visible{${FOCUS}}
+      button:disabled,a:not([href]){cursor:default}
+      :host([loading]) button,:host([loading]) a{cursor:progress}
     `;
     static tpl = `<button part="button" type="button"><span class="sr"></span>${BOX}</button>`;
     constructor() {
@@ -1050,20 +1056,36 @@
       this._inline = true;
       this._int = this.attachInternals ? this.attachInternals() : null;
       readyEnter();
-      // Registered first, so it can swallow clicks while disabled or loading.
+      // Registered first, so it can swallow clicks while disabled or loading (a link's too).
       this.addEventListener('click', e => {
         if (this.disabled || this.loading) { e.preventDefault(); e.stopImmediatePropagation(); return; }
+        if (this.hasAttribute('href')) return;
         const form = this._int && this._int.form, type = this.getAttribute('type');
         if (form && type === 'submit') form.requestSubmit();
         if (form && type === 'reset') form.reset();
       });
-      const b = this._btn = this.$('button');
+      this._wire(this._btn = this.$('button'));
+    }
+    /** Hover and press states for the inner <button> or <a>. */
+    _wire(b) {
       const set = (k, v) => { if (this[k] !== v) { this[k] = v; this._dirty = true; schedule(); } };
       b.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') set('_hover', true); });
       b.addEventListener('pointerleave', () => { set('_hover', false); set('_down', false); });
       b.addEventListener('pointerdown', e => { if (e.button === 0) set('_down', true); });
       for (const t of ['pointerup', 'pointercancel', 'keyup', 'blur']) b.addEventListener(t, () => set('_down', false));
-      b.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') set('_down', true); });
+      // Space presses a button; a link answers Enter only.
+      b.addEventListener('keydown', e => { if (e.key === 'Enter' || (e.key === ' ' && b.localName === 'button')) set('_down', true); });
+    }
+    /** Swap the inner element between <button> and <a>, keeping its dots. */
+    _mount(link) {
+      const old = this._btn, b = document.createElement(link ? 'a' : 'button');
+      b.setAttribute('part', 'button');
+      if (!link) b.type = 'button';
+      b.append(...old.childNodes);
+      old.replaceWith(b);
+      this._btn = b;
+      this._hover = this._down = false;
+      this._wire(b);
     }
     get disabled() { return this.hasAttribute('disabled'); }
     set disabled(v) { this.toggleAttribute('disabled', !!v); }
@@ -1074,8 +1096,19 @@
       super._sync();
       const text = this._chars.map(c => c.ch).join('');
       this.$('.sr').textContent = text || this.getAttribute('title') || this.getAttribute('icon') || '';
-      this._btn.disabled = this.disabled;
-      this._btn.setAttribute('aria-busy', String(this.loading));
+      const href = this.getAttribute('href'), link = href != null;
+      if (link !== (this._btn.localName === 'a')) this._mount(link);
+      const b = this._btn;
+      if (link) {
+        // A disabled link has no href, so it is not followed or focused; aria-disabled says why.
+        if (this.disabled) { b.removeAttribute('href'); b.setAttribute('role', 'link'); b.setAttribute('aria-disabled', 'true'); }
+        else { b.setAttribute('href', href); b.removeAttribute('role'); b.removeAttribute('aria-disabled'); }
+        for (const a of ['target', 'rel', 'download']) {
+          if (this.hasAttribute(a)) b.setAttribute(a, this.getAttribute(a));
+          else b.removeAttribute(a);
+        }
+      } else b.disabled = this.disabled;
+      b.setAttribute('aria-busy', String(this.loading));
       animate(this, this.loading && !this.disabled);
     }
     _frame(now) { return Math.floor(now / 200) % 3; }
@@ -1517,6 +1550,125 @@
   }
 
   /* ==================================================================
+   * <dot-select>: a drop-down drawn in dots around a native <select>
+   * child, the way <dot-input> draws an <input>. The select stays in the
+   * page, laid invisibly over the field, so a tap opens the platform's
+   * own picker (a wheel or sheet on a phone), and forms and htmx post it
+   * like any select. The dots draw the label, frame, the chosen option
+   * and a chevron. An option with an empty value draws dim, as a
+   * placeholder. One choice only: `multiple` and `size` are not drawn.
+   * ================================================================== */
+  const SELECT_EVENTS = ['input', 'change', 'focus', 'blur'];
+  class DotSelect extends DotElement {
+    static observedAttributes = ['label', 'note', 'tone', 'accent'];
+    static css = `
+      canvas{z-index:1;pointer-events:none}
+      .box{--_x:0px;--_y:0px;--_w:100%;--_h:44px}
+      ::slotted(:not(select)){display:none!important}
+      ::slotted(select){position:absolute!important;z-index:2!important;display:block!important;box-sizing:border-box!important;
+        left:var(--_x)!important;top:var(--_y)!important;width:var(--_w)!important;height:var(--_h)!important;
+        min-width:0!important;max-width:none!important;min-height:0!important;max-height:none!important;
+        margin:0!important;padding:0!important;border:0!important;border-radius:0!important;outline:none!important;
+        box-shadow:none!important;opacity:0!important;font-size:16px!important;cursor:pointer;
+        -webkit-tap-highlight-color:transparent}
+      ::slotted(select:disabled){cursor:default}
+    `;
+    static tpl = '<div class="box" part="dots"><canvas aria-hidden="true"></canvas><slot></slot></div>';
+    constructor() {
+      super();
+      this._sel = null;
+      this._mine = {};
+      this._poke = () => { this._dirty = true; schedule(); };
+      this._onReset = () => setTimeout(this._poke);
+      // Options added, removed, renamed or selected in the page, and the select's own state.
+      this._lmo = new MutationObserver(() => this.invalidate());
+      this.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') { this._hover = true; this._poke(); } });
+      this.addEventListener('pointerleave', () => { if (this._hover) { this._hover = false; this._poke(); } });
+    }
+    get value() { return this._sel ? this._sel.value : ''; }
+    set value(v) { if (this._sel) { this._sel.value = v; this.invalidate(); } }
+    get disabled() { return !!this._sel && this._sel.matches(':disabled'); }
+    focus(o) { if (this._sel) this._sel.focus(o); }
+    connectedCallback() {
+      this._lmo.observe(this, { childList: true, subtree: true, characterData: true, attributes: true,
+        attributeFilter: ['disabled', 'selected', 'label', 'value'] });
+      super.connectedCallback();
+    }
+    disconnectedCallback() { this._lmo.disconnect(); super.disconnectedCallback(); }
+    _bind() {
+      const sel = this.querySelector(':scope > select');
+      if (sel === this._sel) return;
+      if (this._sel) for (const t of SELECT_EVENTS) this._sel.removeEventListener(t, this._poke);
+      if (this._form) this._form.removeEventListener('reset', this._onReset);
+      this._sel = sel;
+      this._form = sel && sel.form;
+      if (sel) for (const t of SELECT_EVENTS) sel.addEventListener(t, this._poke);
+      if (this._form) this._form.addEventListener('reset', this._onReset);
+    }
+    _sync() {
+      this._bind();
+      const label = this.getAttribute('label') || '', note = this.getAttribute('note') || '', sel = this._sel;
+      this._labC = colsOf(label);
+      this._noteChars = textChars(note);
+      if (sel) {
+        // Name and describe the select from label and note, unless the page already did.
+        for (const [a, v] of [['aria-label', label], ['aria-description', note]]) {
+          const mine = this._mine[a] === sel;
+          if (!mine && (sel.hasAttribute(a) || (a === 'aria-label' &&
+            ((sel.labels && sel.labels.length) || sel.hasAttribute('aria-labelledby'))))) continue;
+          if (v) { sel.setAttribute(a, v); this._mine[a] = sel; }
+          else if (mine) { sel.removeAttribute(a); this._mine[a] = null; }
+        }
+      }
+    }
+    _measure(wd) {
+      const sel = this._sel, H = this._fh = odd(Math.max(13, px(44)));
+      this._pad = Math.max(3, px(12));
+      const fy = this._fy = this._labC.length ? 9 + px(6) : 0;
+      const o = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
+      this._st = { on: !!sel && document.activeElement === sel, dis: this.disabled,
+        text: o ? o.label || o.text : '', ph: !o || o.value === '' };
+      this._note = wd > 0 && this._noteChars.length
+        ? wrapLines(this._noteChars, wd, 'body', 1).map(l => layout(l, 'body')) : [];
+      this._ny = fy + H + px(6);
+      this._place(wd);
+      return { w: wd, h: this._note.length ? this._ny + this._note.length * 12 - 3 : fy + H };
+    }
+    /** Lay the invisible select over the drawn field, so a tap anywhere on it opens the picker. */
+    _place(wd = this._sz.w) {
+      if (!this._sel) return;
+      const P = G.pcss, b = this._box.style, set = (k, v) => b.setProperty(k, v + 'px');
+      set('--_x', this._lx || 0);
+      set('--_y', (this._ly || 0) + this._fy * P);
+      set('--_w', wd * P);
+      set('--_h', this._fh * P);
+    }
+    _moved() { this._place(); }
+    _draw(p) {
+      const st = this._st, w = this._sz.w, H = this._fh, fy = this._fy, pad = this._pad;
+      const toned = this.hasAttribute('tone') || this.hasAttribute('accent');
+      p.text(this._labC, 0, 0, 1, st.dis ? DIM : MUTED);
+      p.strokeRound(0, fy, w, H, 2, st.dis ? DIM : toned ? TONE : st.on ? ACCENT : this._hover ? FG : MUTED);
+      const ty = fy + ((H - 7) >> 1), cx = w - pad - 7;
+      p.icon('chevron', cx, ty, st.dis ? DIM : st.on ? ACCENT : FG);
+      // The chosen option, cut with an ellipsis where it would run into the chevron.
+      const room = cx - pad - 4;
+      let cols = colsOf(st.text);
+      if (cols.length > room) {
+        const dots = colsOf('…'), chars = textChars(st.text);
+        let n = chars.length;
+        do cols = layout([...chars.slice(0, --n), { ch: '…', a: false }], 'body');
+        while (n > 0 && cols.length > room);
+        if (cols.length > room) cols = dots;
+      }
+      p.clip(pad, -REACH, Math.max(0, room), H + fy + 2 * REACH);
+      p.text(cols, pad, ty, 1, st.dis ? MUTED : st.ph ? DIM : FG);
+      p.clip();
+      this._note.forEach((cols, i) => p.text(cols, 0, this._ny + i * 12, 1, toned ? TONE : MUTED));
+    }
+  }
+
+  /* ==================================================================
    * <dot-led>: an indicator light (3x3 dots; size s: 1, l: 5) in its
    * tone, with optional text beside it. tone="off" draws it dim.
    * `blink` (or blink="fast") flashes it; `label` names it for readers.
@@ -1753,7 +1905,7 @@
   }
 
   window.Dotmatrix = {
-    version: '0.4.3',
+    version: '0.5.0',
     theme,
     glyph,
     layout,
@@ -1784,6 +1936,7 @@
   define('dot-slider', DotSlider);
   define('dot-toggle', DotToggle);
   define('dot-input', DotInput);
+  define('dot-select', DotSelect);
   define('dot-led', DotLed);
   define('dot-badge', DotBadge);
   define('dot-status', DotStatus);
