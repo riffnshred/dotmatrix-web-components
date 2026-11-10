@@ -64,10 +64,14 @@
     </dot-panel>
 
     <dot-panel label="Values" note="dot-value: a label, the value, a unit and a note.">
-      <dot-value label="Temperature" value="23.4" unit="&deg;C" note="Panel sensor, updated every second" id="temp"></dot-value>
+      <dot-value label="Temperature" value="23.4" unit="&deg;C" note="Panel sensor, updated every second" size="l" id="temp"></dot-value>
       <dot-grid>
-        <dot-value label="Frame rate" value="60" unit="fps" size="s"></dot-value>
-        <dot-value label="Fan" value="82" unit="%" size="s" tone="warn"></dot-value>
+        <dot-value label="Frame rate" value="60" unit="fps"></dot-value>
+        <dot-value label="Fan" value="82" unit="%" tone="warn"></dot-value>
+      </dot-grid>
+      <dot-grid>
+        <dot-value label="Clients" value="2" size="s"></dot-value>
+        <dot-value label="Uptime" value="72" unit="h" size="s"></dot-value>
       </dot-grid>
     </dot-panel>
 

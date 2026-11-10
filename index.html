@@ -260,9 +260,9 @@
         </script>
         <script type="text/plain" class="ex" data-title="Columns">
           <dot-grid>
-            <dot-value label="Frame rate" value="60" unit="fps" size="s"></dot-value>
-            <dot-value label="Panel" value="23.4" unit="&deg;C" size="s"></dot-value>
-            <dot-value label="Fan" value="82" unit="%" size="s" tone="warn"></dot-value>
+            <dot-value label="Frame rate" value="60" unit="fps"></dot-value>
+            <dot-value label="Panel" value="23.4" unit="&deg;C"></dot-value>
+            <dot-value label="Fan" value="82" unit="%" tone="warn"></dot-value>
           </dot-grid>
         </script>
         <script type="text/plain" class="ex" data-title="Row">
@@ -342,16 +342,22 @@
           unit  | text | After the value, at half its size.
           label | text | Above the value.
           note  | text | Below the value.
-          size  | `s`, `m`, `l` | The value at x2, x3 or x4. Default `m`.
+          size  | `s`, `m`, `l`, `xl` | The value at x1, x2, x3 or x4. Default `m`.
           tone  | `accent`, `ok`, `warn`, `err` | Colour of the value.
         </script>
         <p>JS: <code>el.value = 24.1</code> updates it.</p>
         <script type="text/plain" class="ex" data-title="Readouts">
-          <dot-value label="Temperature" value="23.4" unit="&deg;C" note="Panel sensor"></dot-value>
+          <dot-value label="Temperature" value="23.4" unit="&deg;C" note="Panel sensor" size="l"></dot-value>
           <dot-grid>
-            <dot-value label="Frame rate" value="60" unit="fps" size="s"></dot-value>
-            <dot-value label="Fan" value="82" unit="%" size="s" tone="warn"></dot-value>
+            <dot-value label="Frame rate" value="60" unit="fps"></dot-value>
+            <dot-value label="Fan" value="82" unit="%" tone="warn"></dot-value>
           </dot-grid>
+        </script>
+        <script type="text/plain" class="ex" data-title="Sizes">
+          <dot-value label="xl" value="88" unit="%" size="xl"></dot-value>
+          <dot-value label="l" value="88" unit="%" size="l"></dot-value>
+          <dot-value label="m, the default" value="88" unit="%"></dot-value>
+          <dot-value label="s" value="88" unit="%" size="s"></dot-value>
         </script>
       </section>
 

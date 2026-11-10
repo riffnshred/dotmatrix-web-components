@@ -1,5 +1,5 @@
 /*!
- * Dotmatrix v0.4.2 - dot-matrix web components for LED panel control pages.
+ * Dotmatrix v0.4.3 - dot-matrix web components for LED panel control pages.
  * The page is one grid of dots, like the HUB75 panels it controls.
  * Surfaces: <dot-matrix>, <dot-app>
  * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-marquee>
@@ -859,10 +859,10 @@
 
   /* ==================================================================
    * <dot-value>: a labelled readout. The value is in the capitals font
-   * at x3 (size s: x2, l: x4) and steps down to fit; `unit` follows it
-   * at half size, `note` sits below. Value from `value` or light DOM.
+   * at x2 (size s: x1, l: x3, xl: x4) and steps down to fit; `unit`
+   * follows it at half size, `note` sits below. Value from `value` or
+   * light DOM.
    * ================================================================== */
-  const VALUE_SCALE = { s: 2, m: 3, l: 4 };
   class DotValue extends DotTextual {
     static textAttr = 'value';
     static observedAttributes = ['value', 'unit', 'label', 'note', 'size', 'tone', 'accent'];
@@ -881,7 +881,7 @@
     _measure(wd) {
       const vc = this._vc = layout(this._chars, 'head'), uc = this._unitC;
       const width = k => vc.length * k + (uc.length ? k + uc.length * Math.max(1, k >> 1) : 0);
-      let k = VALUE_SCALE[this.getAttribute('size')] || 3;
+      let k = HEAD_SCALE[this.getAttribute('size')] || 2;
       while (k > 1 && width(k) > wd) k--;
       this._k = k;
       this._ku = Math.max(1, k >> 1);
@@ -1753,7 +1753,7 @@
   }
 
   window.Dotmatrix = {
-    version: '0.4.2',
+    version: '0.4.3',
     theme,
     glyph,
     layout,
