@@ -131,6 +131,8 @@
         <li><a href="#theming">Theming</a></li>
         <li><a href="#js">JavaScript</a></li>
       </ul>
+      <p>Examples</p>
+      <ul><li><a href="#examples">Example pages</a></li></ul>
     </nav>
 
     <main>
@@ -635,7 +637,18 @@
           Dotmatrix.layout()  | Characters, as `[{ ch, a }]`, laid out as columns of dots, for the same.
           el.render()         | Redraws one component.
         </script>
-        <p>More examples: <a href="examples/components.html">every component on one page</a> and <a href="examples/login.html">a device sign-in page</a>.</p>
+        <p>The <a href="examples/nhl-logos.html">NHL logos</a> example paints its own canvas this way, lined up with the page grid through <code>Dotmatrix.pitch</code>.</p>
+      </section>
+
+      <!-- ============================== Examples ============================== -->
+      <section id="examples">
+        <dot-heading size="l">Example pages</dot-heading>
+        <p>Whole pages built on the kit, in the <code>examples/</code> folder. Each one loads <code>../dotmatrix.js</code>.</p>
+        <ul>
+          <li><a href="examples/components.html">Components</a>: every component on one page. <a href="examples/components.html#check">With <code>#check</code></a>, the unlit grid is brighter, so a dot off the grid shows up, and characters the fonts lack are red.</li>
+          <li><a href="examples/login.html">Sign-in</a>: a device sign-in page, a plain form posting to <code>/login</code>. A script fakes the server: sign in as <code>admin</code> with the password <code>matrix</code>.</li>
+          <li><a href="examples/nhl-logos.html">NHL logos</a>: an experiment, the 32 NHL logos at panel resolution, painted on the page grid.</li>
+        </ul>
       </section>
     </main>
   </div>
