@@ -551,17 +551,28 @@
       return { el, s, wd: Math.max(0, Math.floor((x + r.width * dpr - snap(x, oA(s)[0])) / P + 1e-3)) };
     });
     // 2. Write: lay out content and size each box in whole dots.
+    const resize = (el, wd, sz) => {
+      el._wd = wd;
+      el._dirty = true;
+      el._sz = sz;
+      const h = sz.h * P / dpr + 'px';
+      if (el._box.style.height !== h) el._box.style.height = h;
+      if (el._inline) { const w = sz.w * P / dpr + 'px'; if (el._box.style.width !== w) el._box.style.width = w; }
+    };
+    const late = [];
     for (const it of items) {
       const el = it.el;
+      if (el._late) { late.push(it); continue; }
       // An inline component sizes itself, so the width it is given does not matter.
       if (!el._dirty && (el._inline || it.wd === el._wd)) continue;
-      el._wd = it.wd;
-      el._dirty = true;
-      el._sz = el._measure(it.wd);
-      const h = el._sz.h * P / dpr + 'px';
-      if (el._box.style.height !== h) el._box.style.height = h;
-      if (el._inline) { const w = el._sz.w * P / dpr + 'px'; if (el._box.style.width !== w) el._box.style.width = w; }
+      resize(el, it.wd, el._measure(it.wd));
     }
+    // 2b. A frame (panel) measures the content sized above, so it goes last and never draws the
+    // content's old height. Read every frame, then write; its own box is out of flow.
+    late.map(it => it.el._measure(it.wd)).forEach((sz, i) => {
+      const it = late[i], el = it.el;
+      if (el._dirty || it.wd !== el._wd || sz.h !== el._sz.h) resize(el, it.wd, sz);
+    });
     // 3. Read again (heights may have moved things), then place canvases on the grid and paint.
     const oB = origins();
     const places = items.map(it => {
@@ -1644,13 +1655,13 @@
     constructor() {
       super();
       this._shown = false;
+      // Measured after everything else on every layout pass, so the frame always matches its content.
+      // The host is the frame's size, so the shared ResizeObserver schedules that pass.
+      this._late = true;
       this._wrap = this.$('.wrap');
-      this._fro = new ResizeObserver(() => { this._dirty = true; schedule(); });
     }
     get open() { return this.hasAttribute('open'); }
     set open(v) { this.toggleAttribute('open', !!v); }
-    connectedCallback() { super.connectedCallback(); this._fro.observe(this.$('.frame')); }
-    disconnectedCallback() { super.disconnectedCallback(); this._fro.disconnect(); }
     _build() {
       const coll = this._coll = this.hasAttribute('collapsible');
       const body = '<div class="body" part="body"><dot-text muted class="note" part="note"></dot-text><slot></slot></div>';
