@@ -158,14 +158,14 @@
     </dot-panel>
   </dot-grid>
 
-  <dot-panel label="Marquee" note="dot-marquee moves its text through a window, one dot at a time. A mouse over it holds it.">
+  <dot-panel label="Marquee" note="dot-marquee moves its text through a window, one dot at a time. With pause-on-hover, a mouse over it holds it.">
     <dot-marquee id="marquee">Matrix 01 is <em>live</em>: brightness 72%, panel at 23.4&deg;C</dot-marquee>
     <dot-grid class="controls" cols="3">
       <dot-input label="Message"><input id="marquee-text" value="Matrix 01 is live: brightness 72%, panel at 23.4&deg;C" autocomplete="off"></dot-input>
       <dot-slider id="marquee-speed" label="Speed" unit=" px/s" min="0" max="60" value="20"></dot-slider>
       <dot-toggle id="marquee-pause" label="Paused"></dot-toggle>
     </dot-grid>
-    <dot-marquee size="s" font="body" tone="ok" speed="30">The body font at x1 in the ok tone, at 30 px a second. Long messages scroll off to the left and come back in from the right.</dot-marquee>
+    <dot-marquee size="s" font="body" tone="ok" speed="30" pause-on-hover>The body font at x1 in the ok tone, at 30 px a second, held while a mouse is over it. Long messages scroll off to the left and come back in from the right.</dot-marquee>
   </dot-panel>
 
   <dot-panel label="Icons" id="icons-panel">

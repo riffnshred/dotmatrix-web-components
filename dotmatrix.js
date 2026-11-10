@@ -1,5 +1,5 @@
 /*!
- * Dotmatrix v0.4.1 - dot-matrix web components for LED panel control pages.
+ * Dotmatrix v0.4.2 - dot-matrix web components for LED panel control pages.
  * The page is one grid of dots, like the HUB75 panels it controls.
  * Surfaces: <dot-matrix>, <dot-app>
  * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-marquee>
@@ -928,8 +928,9 @@
    * left, scrolls off, and comes back in from the right. Capitals at x2
    * (size s: x1, l: x3, xl: x4); font="body" uses the mixed-case font.
    * `speed` is in the font's own pixels per second (default 20), so the
-   * text reads at the same pace at every size. `paused` holds it, and so
-   * does a mouse over it. With reduced motion it stands still, wrapped.
+   * text reads at the same pace at every size. `paused` holds it, and with
+   * `pause-on-hover` so does a mouse over it. With reduced motion it stands
+   * still, wrapped.
    * ================================================================== */
   class DotMarquee extends DotTextual {
     static observedAttributes = ['text', 'size', 'font', 'speed', 'paused', 'tone', 'accent'];
@@ -946,6 +947,8 @@
     set speed(v) { this.setAttribute('speed', v); }
     get paused() { return this.hasAttribute('paused'); }
     set paused(v) { this.toggleAttribute('paused', !!v); }
+    get pauseOnHover() { return this.hasAttribute('pause-on-hover'); }
+    set pauseOnHover(v) { this.toggleAttribute('pause-on-hover', !!v); }
     _sync() {
       super._sync();
       this._font = this.getAttribute('font') === 'body' ? 'body' : 'head';
@@ -958,7 +961,8 @@
     }
     _frame(now) {
       // A long gap (a hidden tab) counts as one short frame, so the text does not jump.
-      if (this._t && !this._hover) this._pos += Math.min(100, now - this._t) * this._rate / 1000;
+      // The hover is read here, not in _sync, so pause-on-hover takes effect while the mouse is already over it.
+      if (this._t && !(this._hover && this.pauseOnHover)) this._pos += Math.min(100, now - this._t) * this._rate / 1000;
       this._t = now;
       return (this._step = Math.floor(this._pos));
     }
@@ -1749,7 +1753,7 @@
   }
 
   window.Dotmatrix = {
-    version: '0.4.1',
+    version: '0.4.2',
     theme,
     glyph,
     layout,

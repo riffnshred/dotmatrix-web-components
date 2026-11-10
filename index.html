@@ -378,19 +378,20 @@
 
       <section id="marquee">
         <dot-heading size="l">Marquee</dot-heading>
-        <p><code>&lt;dot-marquee&gt;</code> Text scrolling right to left through a frame, one dot per step, like a message on the panel. A mouse over it holds it. With reduced motion it stands still and wraps.</p>
+        <p><code>&lt;dot-marquee&gt;</code> Text scrolling right to left through a frame, one dot per step, like a message on the panel. With reduced motion it stands still and wraps.</p>
         <script type="text/plain" class="api">
           text   | text | The message, when it is not the content.
           size   | `s`, `m`, `l`, `xl` | x1 to x4. Default `m`.
           font   | `body` | Mixed case. Capitals when unset.
           speed  | number | In the font's own pixels per second, so every size reads at the same pace. Default `20`.
           paused | boolean | Holds it in place.
+          pause-on-hover | boolean | Holds it while a mouse is over it. It keeps moving when unset.
           tone   | `accent`, `ok`, `warn`, `err` | Colour.
         </script>
-        <p>JS: the <code>speed</code> and <code>paused</code> properties.</p>
+        <p>JS: the <code>speed</code>, <code>paused</code> and <code>pauseOnHover</code> properties.</p>
         <script type="text/plain" class="ex" data-title="Capitals and body font">
           <dot-marquee>Matrix 01 is <em>live</em>: brightness 72%</dot-marquee>
-          <dot-marquee size="s" font="body" tone="ok" speed="30">The body font at x1, a little faster.</dot-marquee>
+          <dot-marquee size="s" font="body" tone="ok" speed="30" pause-on-hover>The body font at x1, a little faster. A mouse over it holds it.</dot-marquee>
         </script>
       </section>
 
