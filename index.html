@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dotmatrix Docs</title>
+<!--
+  The docs: every component, what it takes, and live examples.
+  Each section is written by hand from three kinds of block, which the
+  script at the bottom turns into the page:
+  - <script type="text/plain" class="api">: the attribute table, one row
+    per line, "name | values | description". `Backticks` mark code.
+  - <script type="text/plain" class="ex" data-title="...">: a live example.
+    It renders in a panel with its own source shown below as the code, so
+    the preview and the code cannot drift apart.
+  - <script type="text/plain" class="snippet">: code with no preview
+    (data-lang="js" turns off the HTML colouring).
+  Inside these blocks, write the closing script, head, body and html tags
+  with a backslash, as in <\/script>. A script tag would end the block,
+  and Live Server (VS Code) injects its reload script before every closing
+  body tag in the file but sizes the response for one: with a second one
+  in a snippet, the page arrives cut short and nothing renders.
+-->
+<script src="dotmatrix.js"></script>
+<style>
+  /* Single dark look by choice, set unlayered so a host page's reset cannot override it. */
+  :root{color-scheme:dark}
+  html,body{background:#000000}
+  html{scroll-padding-top:16px}
+  dot-app{--dot-width:1180px}
+
+  .docs{display:grid;grid-template-columns:minmax(0,1fr);gap:calc(var(--dot-pitch,2px) * 16)}
+  main{display:flex;flex-direction:column;gap:calc(var(--dot-pitch,2px) * 36);min-width:0}
+  section{display:flex;flex-direction:column;gap:calc(var(--dot-pitch,2px) * 10);min-width:0}
+
+  /* Plain text: the prose, tables, code and contents stay searchable and copyable. */
+  .docs p,.docs li,.toc,table{font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#C9C9C4}
+  .docs p{margin:0;max-width:72ch}
+  .docs ul{margin:0;padding-left:1.25em}
+  .docs a{color:#FFFFFF}
+  code,pre{font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+  :not(pre) > code{color:#F2F2EE;background:#161616;padding:1px 5px;border-radius:3px;white-space:nowrap}
+  pre{margin:0;padding:12px 14px;overflow:auto;background:#0B0B0B;border-radius:4px;color:#E4E4DF;tab-size:2}
+  pre .t{color:#FF6A6A}
+  pre .a{color:#FFC55C}
+  pre .s{color:#6EE89A}
+  pre .c{color:#7A7A75}
+
+  .api{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th{text-align:left;font-weight:600;font-size:12px;color:#8A8A85;text-transform:uppercase;letter-spacing:.06em}
+  th,td{padding:8px 16px 8px 0;border-bottom:1px solid #222222;vertical-align:top}
+  td:first-child{white-space:nowrap}
+  td:last-child{padding-right:0}
+
+  /* Contents: one row per group on a phone, a sticky sidebar on a wide screen. */
+  .toc{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;align-items:baseline;font-size:14px}
+  .toc p{margin:0;color:#7A7A75;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  .toc ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:0 14px}
+  .toc a{display:inline-block;padding:4px 0;font-size:14px;color:#C9C9C4;text-decoration:none}
+  .toc a:hover{color:#FFFFFF;text-decoration:underline}
+  .toc a:focus-visible{outline:2px solid var(--dot-accent,#FF2E2E);outline-offset:2px}
+  @media (min-width:900px){
+    .docs{grid-template-columns:160px minmax(0,1fr)}
+    .toc{display:block;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto}
+    .toc p{margin:20px 0 4px}
+    .toc p:first-child{margin-top:0}
+    .toc ul{display:block}
+    .toc a{padding:3px 0}
+  }
+
+  /* An example: the live preview, then its code. */
+  .preview{display:flex;flex-direction:column;gap:calc(var(--dot-pitch,2px) * 8);min-width:0}
+  /* A button sizes itself; in a column it would otherwise stretch past its pill. */
+  .preview > :is(dot-button,dot-icon,dot-led,dot-badge,dot-status){align-self:flex-start}
+  .code{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:calc(var(--dot-pitch,2px) * 4)}
+  @media (max-width:599px){
+    .code{grid-template-columns:minmax(0,1fr)}
+    .code dot-button{order:-1;justify-self:end}
+  }
+
+  /* Sized in dots: the names are drawn in dots, and the pitch is 3 px at DPR 1. */
+  .icons{--dot-min:calc(var(--dot-pitch,2px) * 56);--dot-gap:calc(var(--dot-pitch,2px) * 8)}
+  .icon{display:flex;flex-direction:column;gap:calc(var(--dot-pitch,2px) * 4)}
+</style>
+</head>
+<body>
+<dot-app>
+  <dot-bar label="Dotmatrix">
+    <dot-icon slot="start" name="matrix" size="l"></dot-icon>
+    <dot-badge slot="end" id="version">Docs</dot-badge>
+  </dot-bar>
+
+  <div class="docs">
+    <nav class="toc" aria-label="Contents">
+      <p>Start</p>
+      <ul><li><a href="#start">Getting started</a></li></ul>
+      <p>Layout</p>
+      <ul>
+        <li><a href="#app">App</a></li>
+        <li><a href="#bar">Bar</a></li>
+        <li><a href="#panel">Panel</a></li>
+        <li><a href="#grid">Grid</a></li>
+        <li><a href="#rule">Rule</a></li>
+        <li><a href="#matrix">Matrix</a></li>
+      </ul>
+      <p>Text</p>
+      <ul>
+        <li><a href="#heading">Heading</a></li>
+        <li><a href="#text">Text</a></li>
+        <li><a href="#value">Value</a></li>
+        <li><a href="#icon">Icon</a></li>
+        <li><a href="#marquee">Marquee</a></li>
+      </ul>
+      <p>Controls</p>
+      <ul>
+        <li><a href="#button">Button</a></li>
+        <li><a href="#slider">Slider</a></li>
+        <li><a href="#toggle">Toggle</a></li>
+        <li><a href="#input">Input</a></li>
+      </ul>
+      <p>Status</p>
+      <ul>
+        <li><a href="#status">Status</a></li>
+        <li><a href="#led">LED</a></li>
+        <li><a href="#badge">Badge</a></li>
+      </ul>
+      <p>Guides</p>
+      <ul>
+        <li><a href="#forms">Forms and htmx</a></li>
+        <li><a href="#theming">Theming</a></li>
+        <li><a href="#js">JavaScript</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <!-- ============================== Start ============================== -->
+      <section id="start">
+        <dot-heading size="l">Getting started</dot-heading>
+        <p>Dotmatrix is a set of web components for the control pages of LED matrix projects. The whole page is one grid of dots, like the panels it controls, and every component draws on that grid. It is one script with no dependencies: no build step, no CDN and no web fonts, so a Raspberry Pi or an ESP32 can serve it offline.</p>
+        <p>Put <code>dotmatrix.js</code> next to your page, load it in the <code>&lt;head&gt;</code>, and put everything inside <code>&lt;dot-app&gt;</code>:</p>
+        <script type="text/plain" class="snippet">
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+            <title>Matrix 01</title>
+            <script src="dotmatrix.js"><\/script>
+          <\/head>
+          <body>
+            <dot-app>
+              <dot-bar label="Matrix 01">
+                <dot-status slot="end" state="online"></dot-status>
+              </dot-bar>
+              <dot-panel label="Display">
+                <dot-slider name="brightness" label="Brightness" unit="%" value="72"></dot-slider>
+                <dot-toggle name="autodim" label="Auto dim" checked></dot-toggle>
+              </dot-panel>
+            </dot-app>
+          <\/body>
+          <\/html>
+        </script>
+        <p>These attributes work the same way on every component that has them:</p>
+        <script type="text/plain" class="api">
+          text   | text | The text, when it is not the element's content. On a button it is `label`, on a value `value`. The attribute wins if both are set.
+          tone   | `accent`, `ok`, `warn`, `err` | Colours the component. Pair a colour with a word, so it never carries meaning alone.
+          accent | boolean | Short for `tone="accent"`.
+          size   | `s`, `m`, `l`, `xl` | Text comes in whole multiples of its font, x1 to x4. Each component lists the sizes it has.
+        </script>
+        <p>Words inside <code>&lt;em&gt;</code>, <code>&lt;b&gt;</code>, <code>&lt;strong&gt;</code> or <code>&lt;mark&gt;</code> are drawn in the accent colour. Accented letters (&eacute;, &ccedil;, &uuml;&hellip;) are drawn too, and a character the fonts lack shows as a box.</p>
+        <script type="text/plain" class="ex" data-title="Tones and accents">
+          <dot-text>Wrap a word in em to <em>accent</em> it.</dot-text>
+          <dot-grid row>
+            <dot-badge tone="accent">accent</dot-badge>
+            <dot-badge tone="ok">ok</dot-badge>
+            <dot-badge tone="warn">warn</dot-badge>
+            <dot-badge tone="err">err</dot-badge>
+          </dot-grid>
+        </script>
+      </section>
+
+      <!-- ============================== Layout ============================== -->
+      <section id="app">
+        <dot-heading size="l">App</dot-heading>
+        <p><code>&lt;dot-app&gt;</code> The page. Put it straight inside <code>&lt;body&gt;</code> and everything else inside it. It applies the dark theme, shows the unlit grid, and centres each child in a column. A <code>&lt;dot-bar&gt;</code> as its first child spans the page and sits flush with the top.</p>
+        <script type="text/plain" class="api">
+          --dot-width | length | Width of the centred column. Default `1080px`.
+        </script>
+        <script type="text/plain" class="snippet">
+          <style>
+            dot-app { --dot-width: 720px; }
+          </style>
+
+          <body>
+            <dot-app>
+              <dot-bar label="Matrix 01"></dot-bar>
+              <dot-panel label="Display">...</dot-panel>
+              <dot-panel label="Network">...</dot-panel>
+            </dot-app>
+          <\/body>
+        </script>
+      </section>
+
+      <section id="bar">
+        <dot-heading size="l">Bar</dot-heading>
+        <p><code>&lt;dot-bar&gt;</code> The top bar: a title, room for an icon or actions on each side, and a rule below. Inside <code>&lt;dot-app&gt;</code> it spans the page and clears the notch. It scrolls with the page.</p>
+        <script type="text/plain" class="api">
+          label        | text | The title, in capitals.
+          level        | `1` to `6` | Heading level of the title. Default `1`.
+          slot="start" | on a child | Goes before the title.
+          slot="end"   | on a child | Goes at the far end. Other children follow the title.
+        </script>
+        <script type="text/plain" class="ex" data-title="Title, icon and status">
+          <dot-bar label="Matrix 01">
+            <dot-icon slot="start" name="matrix" size="l"></dot-icon>
+            <dot-status slot="end" state="online"></dot-status>
+          </dot-bar>
+        </script>
+      </section>
+
+      <section id="panel">
+        <dot-heading size="l">Panel</dot-heading>
+        <p><code>&lt;dot-panel&gt;</code> A card: a one-dot frame with its title set into the top edge. Its children stack with a gap between them.</p>
+        <script type="text/plain" class="api">
+          label       | text | The title, set into the top edge.
+          note        | text | A muted line under the title.
+          level       | `1` to `6` | Heading level of the title. Default `2`.
+          collapsible | boolean | The title opens and closes the panel. Closed, the panel is just its title line.
+          open        | boolean | A collapsible panel starts open.
+          tone        | `accent`, `ok`, `warn`, `err` | Colour of the title.
+        </script>
+        <p>JS: the <code>open</code> property, and a <code>toggle</code> event when a collapsible panel opens or closes.</p>
+        <script type="text/plain" class="ex" data-title="Label and note">
+          <dot-panel label="Display" note="Changes apply at once.">
+            <dot-slider label="Brightness" unit="%" value="72"></dot-slider>
+            <dot-toggle label="Auto dim" checked></dot-toggle>
+          </dot-panel>
+        </script>
+        <script type="text/plain" class="ex" data-title="Collapsible">
+          <dot-panel label="Network" collapsible open>
+            <dot-text>Click the title to close this panel.</dot-text>
+          </dot-panel>
+          <dot-panel label="Advanced" collapsible>
+            <dot-text>Hidden until the panel opens.</dot-text>
+          </dot-panel>
+        </script>
+      </section>
+
+      <section id="grid">
+        <dot-heading size="l">Grid</dot-heading>
+        <p><code>&lt;dot-grid&gt;</code> Layout only; it draws nothing. Children go in as many columns as fit, or in a wrapping row with <code>row</code>. Gaps are whole dots.</p>
+        <script type="text/plain" class="api">
+          cols      | `1` to `6` | At most this many columns.
+          row       | boolean | A wrapping row. Buttons, icons, LEDs, badges and status keep their size; text and sliders share the rest.
+          --dot-min | length | Narrowest column. Default `140px`. Inherited, so set it again on a nested grid.
+          --dot-gap | length | Space between children. Default 8 dots, 5 in a row.
+        </script>
+        <script type="text/plain" class="ex" data-title="Columns">
+          <dot-grid>
+            <dot-value label="Frame rate" value="60" unit="fps" size="s"></dot-value>
+            <dot-value label="Panel" value="23.4" unit="&deg;C" size="s"></dot-value>
+            <dot-value label="Fan" value="82" unit="%" size="s" tone="warn"></dot-value>
+          </dot-grid>
+        </script>
+        <script type="text/plain" class="ex" data-title="Row">
+          <dot-grid row>
+            <dot-button variant="primary">Apply</dot-button>
+            <dot-button>Reset</dot-button>
+            <dot-badge tone="ok">Saved</dot-badge>
+          </dot-grid>
+        </script>
+      </section>
+
+      <section id="rule">
+        <dot-heading size="l">Rule</dot-heading>
+        <p><code>&lt;dot-rule&gt;</code> A one-dot divider across the width it has.</p>
+        <script type="text/plain" class="api">
+          dotted | boolean | Lights every other dot.
+          tone   | `accent`, `ok`, `warn`, `err` | Colour. Dim when unset.
+        </script>
+        <script type="text/plain" class="ex" data-title="Solid, dotted and toned">
+          <dot-rule></dot-rule>
+          <dot-rule dotted></dot-rule>
+          <dot-rule tone="accent"></dot-rule>
+        </script>
+      </section>
+
+      <section id="matrix">
+        <dot-heading size="l">Matrix</dot-heading>
+        <p><code>&lt;dot-matrix&gt;</code> A dot surface for part of a page: a black area showing the unlit grid, which the components inside it line up with. Use it to put dots on a page that is not a <code>&lt;dot-app&gt;</code>. It has no attributes; size and pad it with CSS.</p>
+        <script type="text/plain" class="ex" data-title="Embedded surface">
+          <dot-matrix style="padding:16px">
+            <dot-heading size="s">Embedded</dot-heading>
+            <dot-text>These dots line up with this surface, not the page.</dot-text>
+          </dot-matrix>
+        </script>
+      </section>
+
+      <!-- ============================== Text ============================== -->
+      <section id="heading">
+        <dot-heading size="l">Heading</dot-heading>
+        <p><code>&lt;dot-heading&gt;</code> A heading in the 5&times;7 capitals. It wraps between words, and steps down a size rather than break a word.</p>
+        <script type="text/plain" class="api">
+          text  | text | The heading, when it is not the content.
+          size  | `s`, `m`, `l`, `xl` | x1, x2, x3 or x4. Default `m`.
+          level | `1` to `6` | Heading level for screen readers. Default `2`.
+          tone  | `accent`, `ok`, `warn`, `err` | Colour.
+        </script>
+        <script type="text/plain" class="ex" data-title="Sizes">
+          <dot-heading size="xl">Matrix</dot-heading>
+          <dot-heading size="l">Large</dot-heading>
+          <dot-heading>Medium with an <em>accent</em></dot-heading>
+          <dot-heading size="s" tone="ok">Small in the ok tone</dot-heading>
+        </script>
+      </section>
+
+      <section id="text">
+        <dot-heading size="l">Text</dot-heading>
+        <p><code>&lt;dot-text&gt;</code> Body text in the mixed-case 5&times;9 font, wrapped to its width. For paragraphs, labels and notes.</p>
+        <script type="text/plain" class="api">
+          text  | text | The text, when it is not the content.
+          muted | boolean | Dimmer, for notes and labels.
+          size  | `l` | Twice the size.
+          tone  | `accent`, `ok`, `warn`, `err` | Colour.
+        </script>
+        <script type="text/plain" class="ex" data-title="Plain, muted, toned, large">
+          <dot-text>The quick brown fox jumps over the lazy dog. Words in <em>em</em> take the accent colour.</dot-text>
+          <dot-text muted>Muted, for notes.</dot-text>
+          <dot-text tone="warn">Fan at 82%</dot-text>
+          <dot-text size="l">Twice the size</dot-text>
+        </script>
+      </section>
+
+      <section id="value">
+        <dot-heading size="l">Value</dot-heading>
+        <p><code>&lt;dot-value&gt;</code> A readout: a label, a large value, its unit and a note. The value steps down a size rather than overflow.</p>
+        <script type="text/plain" class="api">
+          value | text | The reading. The content works too.
+          unit  | text | After the value, at half its size.
+          label | text | Above the value.
+          note  | text | Below the value.
+          size  | `s`, `m`, `l` | The value at x2, x3 or x4. Default `m`.
+          tone  | `accent`, `ok`, `warn`, `err` | Colour of the value.
+        </script>
+        <p>JS: <code>el.value = 24.1</code> updates it.</p>
+        <script type="text/plain" class="ex" data-title="Readouts">
+          <dot-value label="Temperature" value="23.4" unit="&deg;C" note="Panel sensor"></dot-value>
+          <dot-grid>
+            <dot-value label="Frame rate" value="60" unit="fps" size="s"></dot-value>
+            <dot-value label="Fan" value="82" unit="%" size="s" tone="warn"></dot-value>
+          </dot-grid>
+        </script>
+      </section>
+
+      <section id="icon">
+        <dot-heading size="l">Icon</dot-heading>
+        <p><code>&lt;dot-icon&gt;</code> One 7&times;7 icon. With a <code>label</code> it is an image with that name; without one, screen readers skip it.</p>
+        <script type="text/plain" class="api">
+          name  | an icon name | Which icon. All of them are below.
+          size  | `l`, `xl` | x2 or x3. x1 when unset.
+          label | text | Name for screen readers.
+          tone  | `accent`, `ok`, `warn`, `err` | Colour.
+        </script>
+        <script type="text/plain" class="ex" data-title="Sizes and tone">
+          <dot-grid row>
+            <dot-icon name="wifi"></dot-icon>
+            <dot-icon name="wifi" size="l"></dot-icon>
+            <dot-icon name="wifi" size="xl" tone="ok" label="Wi-Fi connected"></dot-icon>
+          </dot-grid>
+        </script>
+        <dot-panel label="All icons" level="3" id="icons-panel">
+          <dot-grid class="icons" id="icons"></dot-grid>
+        </dot-panel>
+      </section>
+
+      <section id="marquee">
+        <dot-heading size="l">Marquee</dot-heading>
+        <p><code>&lt;dot-marquee&gt;</code> Text scrolling right to left through a frame, one dot per step, like a message on the panel. A mouse over it holds it. With reduced motion it stands still and wraps.</p>
+        <script type="text/plain" class="api">
+          text   | text | The message, when it is not the content.
+          size   | `s`, `m`, `l`, `xl` | x1 to x4. Default `m`.
+          font   | `body` | Mixed case. Capitals when unset.
+          speed  | number | In the font's own pixels per second, so every size reads at the same pace. Default `20`.
+          paused | boolean | Holds it in place.
+          tone   | `accent`, `ok`, `warn`, `err` | Colour.
+        </script>
+        <p>JS: the <code>speed</code> and <code>paused</code> properties.</p>
+        <script type="text/plain" class="ex" data-title="Capitals and body font">
+          <dot-marquee>Matrix 01 is <em>live</em>: brightness 72%</dot-marquee>
+          <dot-marquee size="s" font="body" tone="ok" speed="30">The body font at x1, a little faster.</dot-marquee>
+        </script>
+      </section>
+
+      <!-- ============================== Controls ============================== -->
+      <section id="button">
+        <dot-heading size="l">Button</dot-heading>
+        <p><code>&lt;dot-button&gt;</code> A pill-shaped button. With <code>type="submit"</code> or <code>"reset"</code> it acts on its form, and Enter in one of the form's fields submits it, as with a native button. It adds no name or value to the form data.</p>
+        <script type="text/plain" class="api">
+          label    | text | The label, when it is not the content.
+          variant  | `primary`, `ghost` | An accent fill, or no outline. An outline when unset.
+          size     | `s`, `m`, `l` | 32, 40 or 52 px tall. Default `m`.
+          icon     | an icon name | An icon before the label. With no label, the button is round.
+          title    | text | Names an icon-only button.
+          type     | `submit`, `reset` | Submits or resets its form.
+          disabled | boolean | Greyed out; ignores clicks.
+          loading  | boolean | A busy animation; ignores clicks.
+        </script>
+        <p>JS: the <code>disabled</code> and <code>loading</code> properties; listen for <code>click</code>.</p>
+        <script type="text/plain" class="ex" data-title="Variants">
+          <dot-grid row>
+            <dot-button variant="primary">Apply</dot-button>
+            <dot-button>Reset</dot-button>
+            <dot-button variant="ghost">Cancel</dot-button>
+          </dot-grid>
+        </script>
+        <script type="text/plain" class="ex" data-title="Sizes, icons and states">
+          <dot-grid row>
+            <dot-button size="s">Small</dot-button>
+            <dot-button size="l" variant="primary">Large</dot-button>
+            <dot-button icon="download">Save</dot-button>
+            <dot-button icon="power" title="Power"></dot-button>
+            <dot-button disabled>Disabled</dot-button>
+            <dot-button loading>Saving</dot-button>
+          </dot-grid>
+        </script>
+      </section>
+
+      <section id="slider">
+        <dot-heading size="l">Slider</dot-heading>
+        <p><code>&lt;dot-slider&gt;</code> A range input: its label and value on one line, a rail below. Drag it, or focus it and use the arrow keys. It works in forms and with htmx like a native range.</p>
+        <script type="text/plain" class="api">
+          label    | text | Shown above the rail.
+          value    | number | Starting value. Halfway when unset.
+          min      | number | Default `0`.
+          max      | number | Default `100`.
+          step     | number | Default `1`.
+          unit     | text | Written straight after the number: `%`, or ` px` with a space.
+          variant  | `level` | A rising bar graph instead of a rail.
+          name     | text | The field name in a form.
+          disabled | boolean | Greyed out; cannot be moved.
+        </script>
+        <p>JS: the <code>value</code> property; an <code>input</code> event while it moves and <code>change</code> when it is let go.</p>
+        <script type="text/plain" class="ex" data-title="Rail, steps, level, disabled">
+          <dot-slider label="Brightness" unit="%" value="72"></dot-slider>
+          <dot-slider label="Scroll speed" min="0" max="10" step="0.5" value="4"></dot-slider>
+          <dot-slider label="Volume" variant="level" value="60"></dot-slider>
+          <dot-slider label="Disabled" value="30" disabled></dot-slider>
+        </script>
+      </section>
+
+      <section id="toggle">
+        <dot-heading size="l">Toggle</dot-heading>
+        <p><code>&lt;dot-toggle&gt;</code> An on/off switch with its label. The whole row is the switch. In a form it acts like a checkbox: it sends its value only while on.</p>
+        <script type="text/plain" class="api">
+          label    | text | On the left.
+          checked  | boolean | Starts on.
+          name     | text | The field name in a form.
+          value    | text | Sent while on. Default `on`.
+          disabled | boolean | Greyed out; cannot be switched.
+        </script>
+        <p>JS: the <code>checked</code> property; <code>input</code> and <code>change</code> events on every switch.</p>
+        <script type="text/plain" class="ex" data-title="On, off, disabled">
+          <dot-toggle label="Auto dim" checked></dot-toggle>
+          <dot-toggle label="Night mode"></dot-toggle>
+          <dot-toggle label="Locked" checked disabled></dot-toggle>
+        </script>
+      </section>
+
+      <section id="input">
+        <dot-heading size="l">Input</dot-heading>
+        <p><code>&lt;dot-input&gt;</code> A text field drawn in dots around a native <code>&lt;input&gt;</code>. The input does the real work (typing, autofill, validation, form data), so <code>name</code>, <code>type</code>, <code>value</code>, <code>placeholder</code>, <code>required</code> and <code>hx-*</code> go on the input.</p>
+        <script type="text/plain" class="api">
+          label | text | Above the field. It also names the input for screen readers.
+          note  | text | Below the field.
+          tone  | `accent`, `ok`, `warn`, `err` | Colours the frame and note: `err` for a value that is wrong.
+        </script>
+        <p>JS: setting <code>input.value</code> from a script does not repaint the dots. Set <code>dotInput.value</code> instead, or call <code>dotInput.render()</code>.</p>
+        <script type="text/plain" class="ex" data-title="Text, password, error, disabled">
+          <dot-input label="Device name">
+            <input name="device" value="Matrix 01" autocomplete="off">
+          </dot-input>
+          <dot-input label="Wi-Fi password" note="8 characters or more.">
+            <input type="password" name="wifi" minlength="8" placeholder="Not set" autocomplete="new-password">
+          </dot-input>
+          <dot-input label="Data hub" tone="err" note="Cannot reach this address.">
+            <input name="hub" value="hub.local:8080">
+          </dot-input>
+          <dot-input label="Serial number">
+            <input value="DM-0042" disabled>
+          </dot-input>
+        </script>
+      </section>
+
+      <!-- ============================== Status ============================== -->
+      <section id="status">
+        <dot-heading size="l">Status</dot-heading>
+        <p><code>&lt;dot-status&gt;</code> A connection state as a coloured light and a word. Screen readers announce it when it changes.</p>
+        <script type="text/plain" class="api">
+          state | `online`, `connecting`, `offline`, `error` | Anything else reads as offline. `connecting` blinks.
+          label | text | Replaces the word.
+        </script>
+        <p>JS: <code>el.state = 'error'</code> changes it.</p>
+        <script type="text/plain" class="ex" data-title="Every state">
+          <dot-grid row>
+            <dot-status state="online"></dot-status>
+            <dot-status state="connecting"></dot-status>
+            <dot-status state="offline"></dot-status>
+            <dot-status state="error"></dot-status>
+            <dot-status state="online" label="Streaming"></dot-status>
+          </dot-grid>
+        </script>
+      </section>
+
+      <section id="led">
+        <dot-heading size="l">LED</dot-heading>
+        <p><code>&lt;dot-led&gt;</code> An indicator light, with text beside it if you give it some.</p>
+        <script type="text/plain" class="api">
+          text  | text | Beside the light, when it is not the content.
+          tone  | `accent`, `ok`, `warn`, `err`, `off` | Colour of the light. `off` draws it dark.
+          blink | boolean, `fast` | Flashes it.
+          size  | `s`, `m`, `l` | 1, 3 or 5 dots square. Default `m`.
+          label | text | Name for screen readers, in place of the text.
+        </script>
+        <script type="text/plain" class="ex" data-title="Tones, blink, sizes">
+          <dot-grid row>
+            <dot-led tone="ok">Power</dot-led>
+            <dot-led tone="warn" blink>Busy</dot-led>
+            <dot-led tone="err" blink="fast">Fault</dot-led>
+            <dot-led tone="off">Idle</dot-led>
+            <dot-led tone="ok" size="l" label="Panel 2 on"></dot-led>
+          </dot-grid>
+        </script>
+      </section>
+
+      <section id="badge">
+        <dot-heading size="l">Badge</dot-heading>
+        <p><code>&lt;dot-badge&gt;</code> A short tag on a dim pill.</p>
+        <script type="text/plain" class="api">
+          text   | text | The tag, when it is not the content.
+          tone   | `accent`, `ok`, `warn`, `err` | Colours the pill and the text.
+          accent | boolean | Short for `tone="accent"`.
+        </script>
+        <script type="text/plain" class="ex" data-title="Tones">
+          <dot-grid row>
+            <dot-badge>v0.4</dot-badge>
+            <dot-badge tone="ok">Ready</dot-badge>
+            <dot-badge tone="warn">82%</dot-badge>
+            <dot-badge tone="err">Fault</dot-badge>
+            <dot-badge accent>New</dot-badge>
+          </dot-grid>
+        </script>
+      </section>
+
+      <!-- ============================== Guides ============================== -->
+      <section id="forms">
+        <dot-heading size="l">Forms and htmx</dot-heading>
+        <p>Sliders and toggles are form controls, and <code>&lt;dot-input&gt;</code> wraps a real input, so a plain <code>&lt;form&gt;</code> posts them all and <code>FormData</code> reads them. Try it: Apply shows what the form would send.</p>
+        <script type="text/plain" class="ex" data-title="Form">
+          <form>
+            <dot-grid cols="1">
+              <dot-input label="Scroll text">
+                <input name="text" value="Hello" autocomplete="off">
+              </dot-input>
+              <dot-slider name="brightness" label="Brightness" unit="%" value="72"></dot-slider>
+              <dot-toggle name="autodim" label="Auto dim" checked></dot-toggle>
+              <dot-grid row>
+                <dot-button type="submit" variant="primary">Apply</dot-button>
+                <dot-button type="reset">Reset</dot-button>
+              </dot-grid>
+            </dot-grid>
+          </form>
+        </script>
+        <p>htmx sends them like native inputs. To send each change as it happens:</p>
+        <script type="text/plain" class="snippet">
+          <dot-slider name="brightness" label="Brightness" value="72"
+                      hx-post="/brightness" hx-trigger="change"></dot-slider>
+
+          <dot-toggle name="autodim" label="Auto dim"
+                      hx-post="/autodim" hx-trigger="change"></dot-toggle>
+
+          <dot-input label="Device name">
+            <input name="device" hx-post="/device">
+          </dot-input>
+        </script>
+        <ul>
+          <li>Give sliders and toggles <code>hx-trigger="change"</code>. Without it, htmx waits for a click.</li>
+          <li>An unchecked toggle sends nothing, like a checkbox.</li>
+          <li>On <code>&lt;dot-input&gt;</code>, <code>name</code> and <code>hx-*</code> go on the inner <code>&lt;input&gt;</code>.</li>
+          <li>To post a whole form, put <code>hx-post</code> on the <code>&lt;form&gt;</code> and use a <code>type="submit"</code> button.</li>
+        </ul>
+        <p>Or listen from a script. Every control fires <code>input</code> while it changes and <code>change</code> when it is done:</p>
+        <script type="text/plain" class="snippet" data-lang="js">
+          const slider = document.querySelector('dot-slider');
+          slider.addEventListener('change', () => {
+            fetch('/brightness', { method: 'POST', body: new URLSearchParams({ brightness: slider.value }) });
+          });
+        </script>
+      </section>
+
+      <section id="theming">
+        <dot-heading size="l">Theming</dot-heading>
+        <p>Dark only. <code>&lt;dot-app&gt;</code> applies the palette below, and any style of your own overrides it: set the properties on <code>:root</code>. Colours are painted into the dots, so a change made from a script shows after <code>Dotmatrix.refresh()</code>.</p>
+        <script type="text/plain" class="api">
+          --dot-bg     | colour | Background. `#000000`
+          --dot-fg     | colour | Text and lit dots. `#ffffff`
+          --dot-accent | colour | Accent words, primary buttons, focus rings. `#FF2E2E`
+          --dot-ok     | colour | `tone="ok"` and online. `#2BE36F`
+          --dot-warn   | colour | `tone="warn"` and connecting. `#FFB01F`
+          --dot-err    | colour | `tone="err"` and errors. `#FF2E2E`
+          --dot-target | number | The dot pitch to aim for, in CSS px; it rounds to whole device pixels. Default `2`.
+          --dot-fill   | 0 to 1 | How much of the pitch a dot fills. Default `0.65`.
+          --dot-unlit  | 0 to 1 | Brightness of the unlit dots. Default `0.12`.
+          --dot-check  | `0`, `1` | `1` paints characters the fonts lack in red.
+          --dot-pitch  | read only | Set by the kit: the pitch in CSS px. Space things in whole dots with it.
+        </script>
+        <script type="text/plain" class="snippet">
+          <style>
+            :root { --dot-accent: #00B3FF; }
+            .stack { display: flex; flex-direction: column; gap: calc(var(--dot-pitch) * 10); }
+          </style>
+        </script>
+      </section>
+
+      <section id="js">
+        <dot-heading size="l">JavaScript</dot-heading>
+        <p>The script adds one global, <code>Dotmatrix</code>.</p>
+        <script type="text/plain" class="api" data-cols="Name|Description">
+          Dotmatrix.version   | The library version, as a string.
+          Dotmatrix.icons     | The icon names, as an array.
+          Dotmatrix.pitch     | The current grid: `{ dpr, device, css, dot }`. `css` is the pitch in CSS px.
+          Dotmatrix.refresh() | Reads the `--dot-*` properties again and redraws everything.
+          Dotmatrix.theme()   | Applies the palette and black background to a page without `<dot-app>`.
+          Dotmatrix.glyph()   | One character of the fonts, for a page that paints its own canvas.
+          Dotmatrix.layout()  | Characters, as `[{ ch, a }]`, laid out as columns of dots, for the same.
+          el.render()         | Redraws one component.
+        </script>
+        <p>More examples: <a href="examples/components.html">every component on one page</a> and <a href="examples/login.html">a device sign-in page</a>.</p>
+      </section>
+    </main>
+  </div>
+</dot-app>
+<script>
+(() => {
+  'use strict';
+  const $$ = sel => [...document.querySelectorAll(sel)];
+  const el = (tag, cls, text) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  };
+
+  /** The text of a <script type="text/plain"> block, unindented, with <\/ written back as </. */
+  function source(s) {
+    const lines = s.textContent.replace(/<\\\//g, '</').split('\n');
+    while (lines.length && !lines[0].trim()) lines.shift();
+    while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+    const ind = Math.min(...lines.filter(l => l.trim()).map(l => l.match(/^ */)[0].length));
+    return lines.map(l => l.slice(ind)).join('\n');
+  }
+
+  /** Text with `backticks` as code. */
+  function inline(s) {
+    const f = document.createDocumentFragment();
+    s.split('`').forEach((t, i) => { if (t) f.append(i % 2 ? el('code', null, t) : t); });
+    return f;
+  }
+
+  /** HTML source into code, with tags, attribute names, values and comments coloured. */
+  const TAG = /<!--[\s\S]*?-->|<(\/?)(!?[\w-]+)((?:\s+[^\s=>\/]+(?:="[^"]*")?)*)(\s*\/?>)/g;
+  const ATTR = /(\s+)([^\s=>\/]+)(?:(=)("[^"]*"))?/g;
+  function highlight(code, src) {
+    const span = (cls, s) => code.append(el('span', cls, s));
+    let i = 0, m;
+    TAG.lastIndex = 0;
+    while ((m = TAG.exec(src))) {
+      code.append(src.slice(i, m.index));
+      i = TAG.lastIndex;
+      if (m[0].startsWith('<!--')) { span('c', m[0]); continue; }
+      code.append('<' + m[1]);
+      span('t', m[2]);
+      let a;
+      ATTR.lastIndex = 0;
+      while ((a = ATTR.exec(m[3]))) {
+        code.append(a[1]);
+        span('a', a[2]);
+        if (a[3]) { code.append('='); span('s', a[4]); }
+      }
+      code.append(m[4]);
+    }
+    code.append(src.slice(i));
+  }
+
+  async function copy(text, code, btn) {
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch (e) {
+      // No clipboard API over plain http (a device on the LAN): copy through a selection.
+      const ta = el('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+      document.body.append(ta);
+      ta.select();
+      try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+      ta.remove();
+    }
+    if (!ok) getSelection().selectAllChildren(code);
+    btn.setAttribute('label', ok ? 'Copied' : 'Selected');
+    clearTimeout(btn._reset);
+    btn._reset = setTimeout(() => btn.setAttribute('label', 'Copy'), 1500);
+  }
+
+  function codeBlock(src, lang) {
+    const box = el('div', 'code'), pre = el('pre'), code = el('code');
+    if (lang === 'js') code.textContent = src;
+    else highlight(code, src);
+    pre.append(code);
+    const btn = el('dot-button');
+    btn.setAttribute('size', 's');
+    btn.setAttribute('variant', 'ghost');
+    btn.setAttribute('label', 'Copy');
+    btn.addEventListener('click', () => copy(src, code, btn));
+    box.append(pre, btn);
+    return box;
+  }
+
+  // Attribute tables.
+  for (const s of $$('script.api')) {
+    const cols = (s.dataset.cols || 'Name|Values|Description').split('|');
+    const table = el('table'), head = table.createTHead().insertRow(), body = table.createTBody();
+    for (const c of cols) head.append(el('th', null, c));
+    for (const line of source(s).split('\n')) {
+      if (!line.trim()) continue;
+      const row = body.insertRow();
+      line.split('|').map(f => f.trim()).forEach((f, i) => {
+        row.insertCell().append(i ? inline(f) : el('code', null, f));
+      });
+    }
+    const wrap = el('div', 'api');
+    wrap.append(table);
+    s.replaceWith(wrap);
+  }
+
+  // Live examples: the preview, then the same source as code.
+  for (const s of $$('script.ex')) {
+    const src = source(s), panel = el('dot-panel'), preview = el('div', 'preview');
+    panel.setAttribute('label', s.dataset.title || 'Example');
+    panel.setAttribute('level', '3');
+    preview.innerHTML = src;   // static examples written in this file
+    panel.append(preview, codeBlock(src, 'html'));
+    s.replaceWith(panel);
+  }
+  for (const s of $$('script.snippet')) s.replaceWith(codeBlock(source(s), s.dataset.lang));
+
+  // Forms in examples: show what would be sent instead of leaving the page.
+  document.addEventListener('submit', e => {
+    const form = e.target, preview = form.closest('.preview');
+    if (!preview) return;
+    e.preventDefault();
+    let out = preview.querySelector('.sent');
+    if (!out) {
+      out = el('dot-text', 'sent');
+      out.setAttribute('muted', '');
+      preview.append(out);
+    }
+    const pairs = [...new FormData(form)].map(([k, v]) => `${k}=${v}`);
+    out.setAttribute('text', 'Sent: ' + (pairs.join(', ') || 'nothing'));
+  });
+  document.addEventListener('reset', e => {
+    const preview = e.target.closest && e.target.closest('.preview'), out = preview && preview.querySelector('.sent');
+    if (out) out.remove();
+  });
+
+  // The icon gallery builds itself from Dotmatrix.icons.
+  const icons = document.getElementById('icons');
+  document.getElementById('icons-panel').setAttribute('note', Dotmatrix.icons.length + ' icons. Use the name in name="..." or in a button\'s icon="...".');
+  for (const name of Dotmatrix.icons) {
+    const cell = el('div', 'icon'), icon = el('dot-icon'), label = el('dot-text');
+    icon.setAttribute('name', name);
+    icon.setAttribute('size', 'l');
+    label.setAttribute('muted', '');
+    label.setAttribute('text', name);
+    cell.append(icon, label);
+    icons.append(cell);
+  }
+
+  document.getElementById('version').setAttribute('text', 'v' + Dotmatrix.version);
+
+  // The dots size themselves after load, which moves the sections: land on the linked one again.
+  addEventListener('load', () => {
+    const target = location.hash && document.getElementById(location.hash.slice(1));
+    if (target) requestAnimationFrame(() => requestAnimationFrame(() => target.scrollIntoView()));
+  });
+})();
+</script>
+</body>
+</html>
