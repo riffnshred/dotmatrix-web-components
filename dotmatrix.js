@@ -1,11 +1,11 @@
 /*!
- * Dotmatrix v0.5.0 - dot-matrix web components for LED panel control pages.
+ * Dotmatrix v0.6.0 - dot-matrix web components for LED panel control pages.
  * The page is one grid of dots, like the HUB75 panels it controls.
  * Surfaces: <dot-matrix>, <dot-app>
  * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-marquee>
  * Controls: <dot-button>, <dot-slider>, <dot-toggle>, <dot-input>, <dot-select>
  * Status:   <dot-led>, <dot-badge>, <dot-status>
- * Layout:   <dot-bar>, <dot-panel>, <dot-grid>, <dot-rule>
+ * Layout:   <dot-bar>, <dot-panel>, <dot-dialog>, <dot-grid>, <dot-rule>
  * No dependencies. Drop in with <script src="dotmatrix.js"></script>
  */
 (() => {
@@ -509,8 +509,12 @@
     return REACH - r0;
   }
 
-  /** Nearest <dot-matrix>/<dot-app> around el, crossing shadow roots. */
+  /**
+   * Nearest surface around el (<dot-matrix>, <dot-app>, <dot-dialog>), crossing shadow roots.
+   * A dialog is a surface and a component at once, and paints its own frame on its own grid.
+   */
   function surfaceOf(el) {
+    if (el._isSurface) return el;
     let n = el;
     while ((n = n.parentNode || n.host)) if (n._isSurface) return n;
     return null;
@@ -535,7 +539,8 @@
       return s => {
         let o = seen.get(s);
         if (!o) {
-          if (s) { const r = s.getBoundingClientRect(); o = [Math.round(r.left * dpr), Math.round(r.top * dpr)]; }
+          // A surface's grid starts at the corner of its _grid box (the dialog's sheet), else its own.
+          if (s) { const r = (s._grid || s).getBoundingClientRect(); o = [Math.round(r.left * dpr), Math.round(r.top * dpr)]; }
           else o = [Math.round(-scrollX * dpr), Math.round(-scrollY * dpr)];
           seen.set(s, o);
         }
@@ -712,6 +717,13 @@
       background-origin:border-box;background-repeat:repeat;image-rendering:pixelated}
     :host([hidden]){display:none}
   `;
+  /** CSS that draws the unlit grid behind `sel`, in el's colours: a surface's background. */
+  function unlitCSS(el, sel) {
+    const cs = getComputedStyle(el), v = n => cs.getPropertyValue(n).trim();
+    const bg = rgb(v('--dot-bg'), '#000000'), fg = rgb(v('--dot-fg'), '#F2F2EE');
+    const size = TILE * G.pcss + 'px';
+    return G.unlit > 0 ? `${sel}{background-image:url(${tileURL(hex(mix(fg, bg, G.unlit)))});background-size:${size} ${size}}` : '';
+  }
   class DotMatrix extends HTMLElement {
     constructor() {
       super();
@@ -724,15 +736,7 @@
     connectedCallback() { surfaces.add(this); start(); this._skin(); schedule(); }
     disconnectedCallback() { surfaces.delete(this); }
     /** Draw the unlit grid in this surface's colours. Call after changing its --dot-fg or --dot-bg. */
-    _skin() {
-      if (!G.pdp) return;
-      const cs = getComputedStyle(this), v = n => cs.getPropertyValue(n).trim();
-      const bg = rgb(v('--dot-bg'), '#000000'), fg = rgb(v('--dot-fg'), '#F2F2EE');
-      const size = TILE * G.pcss + 'px';
-      this._skinEl.textContent = G.unlit > 0
-        ? `:host{background-image:url(${tileURL(hex(mix(fg, bg, G.unlit)))});background-size:${size} ${size}}`
-        : '';
-    }
+    _skin() { if (G.pdp) this._skinEl.textContent = unlitCSS(this, ':host'); }
   }
 
   const APP_CSS = `
@@ -1869,6 +1873,126 @@
   }
 
   /* ==================================================================
+   * <dot-dialog>: a modal panel over the dimmed page. Underneath it is
+   * a native modal <dialog>, so focus stays inside, Esc closes it and
+   * the page behind is inert; a tap on the dimmed page closes it too.
+   * It is a surface of its own: its sheet shows the unlit grid, and its
+   * content snaps to that grid. The frame is a panel's, inset from the
+   * sheet's edge, with the title set into the top edge and a close icon
+   * at its right. Long content scrolls inside the frame while the title
+   * stays put, and a chevron in the bottom edge says there is more.
+   * Open it with show() or the `open` attribute.
+   * ================================================================== */
+  // Unlit dots between the sheet's edge and the frame. The sheet's padding is DIALOG_M - 3 on top
+  // (the title line's first row) and DIALOG_M + 1 on the other sides (the margin and the frame).
+  const DIALOG_M = 5;
+  const DIALOG_CSS = `
+    :host{display:contents}
+    dialog{padding:0;border:0;margin:auto;max-width:none;max-height:none;overflow:visible;
+      background:transparent;color:inherit;outline:none}
+    dialog::backdrop{background:color-mix(in srgb,var(--dot-bg,#000) 80%,transparent)}
+    .sheet{position:relative;box-sizing:border-box;display:flex;flex-direction:column;
+      background-color:var(--dot-bg,#000);background-origin:border-box;background-repeat:repeat;image-rendering:pixelated;
+      width:min(var(--dot-dialog-width,560px),100vw - 32px);
+      max-height:calc(100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+      padding:calc(var(--dot-pitch,2px) * 2) calc(var(--dot-pitch,2px) * 6) calc(var(--dot-pitch,2px) * 6)}
+    /* Whole dots, so the unlit grid ends on a whole dot at the right and the bottom. */
+    @supports (width:round(down,10px,3px)){
+      .sheet{width:round(down,min(var(--dot-dialog-width,560px),100vw - 32px),var(--dot-pitch,2px));
+        max-height:round(down,100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px),var(--dot-pitch,2px))}
+    }
+    .sheet > .box{position:absolute;left:0;right:0;top:0;pointer-events:none}
+    .head{flex:none;height:calc(var(--dot-pitch,2px) * 7)}
+    .body{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:none;
+      display:flex;flex-direction:column;gap:calc(var(--dot-pitch,2px) * 10);
+      padding:calc(var(--dot-pitch,2px) * 6) calc(var(--dot-pitch,2px) * 7) calc(var(--dot-pitch,2px) * 7)}
+    .body::-webkit-scrollbar{display:none}
+    .x{all:unset;position:absolute;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+    .x::before{content:"";position:absolute;inset:calc(50% - 22px)}
+    .x:focus-visible{${FOCUS}}
+  `;
+  class DotDialog extends DotElement {
+    static observedAttributes = ['label', 'open', 'tone', 'accent'];
+    static css = DIALOG_CSS;
+    static tpl = '<style class="skin"></style><dialog part="dialog" aria-labelledby="t"><div class="sheet" part="sheet">' + BOX +
+      '<div class="head" part="head" role="heading" aria-level="2"><span class="sr" id="t"></span></div>' +
+      '<button class="x" part="close" type="button" aria-label="Close"></button>' +
+      '<div class="body" part="body"><slot></slot></div></div></dialog>';
+    constructor() {
+      super();
+      this._isSurface = true;
+      // The frame measures the sheet after its content has been sized, as a panel's does.
+      this._late = true;
+      this._skinEl = this.$('.skin');
+      this._grid = this.$('.sheet');
+      this._body = this.$('.body');
+      // A scroll in a shadow root never reaches the page's listener (scroll events are not composed),
+      // so the body schedules the layout pass itself: the content snaps back onto the grid, and the
+      // chevron follows.
+      this._body.addEventListener('scroll', schedule, { passive: true });
+      const d = this._dlg = this.$('dialog'), x = this._x = this.$('.x');
+      x.addEventListener('click', () => this.close());
+      x.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') this._lit(true); });
+      x.addEventListener('pointerleave', () => this._lit(false));
+      // A tap on the dimmed page closes it, but not a drag that only ends there (selecting text).
+      d.addEventListener('pointerdown', e => { this._out = e.target === d; });
+      d.addEventListener('click', e => { if (e.target === d && this._out) this.close(); });
+      // However it closed (Esc, the icon, a tap outside, close()), the host follows and tells the page.
+      // The event comes a task later, so a dialog shown again in between stays open.
+      d.addEventListener('close', () => {
+        if (d.open) return;
+        this.open = false;
+        this.dispatchEvent(new Event('close'));
+      });
+    }
+    get open() { return this.hasAttribute('open'); }
+    set open(v) { this.toggleAttribute('open', !!v); }
+    show() { this.open = true; }
+    close() { this.open = false; }
+    connectedCallback() { surfaces.add(this); super.connectedCallback(); this._skin(); ro.observe(this._grid); }
+    disconnectedCallback() { surfaces.delete(this); ro.unobserve(this._grid); super.disconnectedCallback(); }
+    /** Draw the unlit grid on the sheet in this dialog's colours. */
+    _skin() { if (G.pdp) this._skinEl.textContent = unlitCSS(this, '.sheet'); }
+    _lit(v) { if (this._hover !== v) { this._hover = v; this._dirty = true; schedule(); } }
+    _sync() {
+      const label = this.getAttribute('label') || '', d = this._dlg;
+      this.$('.sr').textContent = label;
+      this._title = colsOf(label, 'head');
+      if (!this.isConnected || this.open === d.open) return;
+      if (this.open) { d.showModal(); this._body.scrollTop = 0; }
+      else d.close();
+    }
+    _measure(wd) {
+      if (!this._dlg.open) return { w: 0, h: 0 };
+      const H = this._grid.getBoundingClientRect().height * G.dpr, b = this._body;
+      // More below: the chevron in the bottom edge.
+      const more = b.scrollTop + b.clientHeight < b.scrollHeight - 1;
+      if (more !== this._more) { this._more = more; this._dirty = true; }
+      // The close button lies over its icon, 7 dots square in the title line.
+      const k = wd + ',' + G.pcss;
+      if (k !== this._xk) {
+        this._xk = k;
+        const s = this._x.style, d = G.pcss;
+        s.left = (wd - DIALOG_M - 15) * d + 'px';
+        s.top = (DIALOG_M - 3) * d + 'px';
+        s.width = s.height = 7 * d + 'px';
+      }
+      return { w: wd, h: Math.floor(H / G.pdp + 1e-3) };
+    }
+    _draw(p) {
+      const { w, h } = this._sz, M = DIALOG_M, cx = w - M - 15, tx = M + 8;
+      if (w < 2 * M + 30 || h < 2 * M + 8) return;
+      p.strokeRound(M, M, w - 2 * M, h - 2 * M, 2, DIM);
+      // The title stops short of the close icon.
+      const t = this._title.slice(0, Math.max(0, cx - 4 - tx));
+      if (t.length) { p.rect(tx - 2, M, t.length + 4, 1, 0); p.text(t, tx, M - 3, 1, TONE); }
+      p.rect(cx - 2, M, 11, 1, 0);
+      p.icon('close', cx, M - 3, this._hover ? FG : MUTED);
+      if (this._more) { const y = h - M - 1; p.rect(cx - 2, y, 11, 1, 0); p.icon('chevron', cx, y - 3, MUTED); }
+    }
+  }
+
+  /* ==================================================================
    * <dot-bar>: the app's top bar. A heading from `label`, slots start,
    * default and end, and a rule across the page below. As the first
    * child of <dot-app> it spans the page and clears the notch.
@@ -1905,7 +2029,7 @@
   }
 
   window.Dotmatrix = {
-    version: '0.5.0',
+    version: '0.6.0',
     theme,
     glyph,
     layout,
@@ -1942,5 +2066,6 @@
   define('dot-status', DotStatus);
   define('dot-grid', DotGrid);
   define('dot-panel', DotPanel);
+  define('dot-dialog', DotDialog);
   define('dot-bar', DotBar);
 })();

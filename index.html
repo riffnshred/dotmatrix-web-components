@@ -100,6 +100,7 @@
         <li><a href="#app">App</a></li>
         <li><a href="#bar">Bar</a></li>
         <li><a href="#panel">Panel</a></li>
+        <li><a href="#dialog">Dialog</a></li>
         <li><a href="#grid">Grid</a></li>
         <li><a href="#rule">Rule</a></li>
         <li><a href="#matrix">Matrix</a></li>
@@ -247,6 +248,37 @@
           <dot-panel label="Advanced" collapsible>
             <dot-text>Hidden until the panel opens.</dot-text>
           </dot-panel>
+        </script>
+      </section>
+
+      <section id="dialog">
+        <dot-heading size="l">Dialog</dot-heading>
+        <p><code>&lt;dot-dialog&gt;</code> A panel over the dimmed page, for help, details or a question. It is a native modal dialog underneath: focus stays inside it, and Esc, its close icon or a tap outside it closes it. It has its own unlit grid, and its children stack as in a panel. Long content scrolls inside the frame while the title stays put, and a chevron in the bottom edge shows there is more.</p>
+        <script type="text/plain" class="api">
+          label              | text | The title, set into the top edge. It also names the dialog for screen readers.
+          open               | boolean | Shows the dialog. It goes away when the dialog closes.
+          tone               | `accent`, `ok`, `warn`, `err` | Colour of the title.
+          --dot-dialog-width | length | Widest the dialog gets. Default `560px`. On a phone it leaves 16 px each side.
+        </script>
+        <p>JS: <code>show()</code>, <code>close()</code> and the <code>open</code> property, and a <code>close</code> event however it closes. A <code>&lt;form method="dialog"&gt;</code> inside does not close it; call <code>close()</code> from its button instead.</p>
+        <script type="text/plain" class="ex" data-title="Help">
+          <dot-button icon="info" onclick="this.nextElementSibling.show()">Brightness</dot-button>
+          <dot-dialog label="Brightness">
+            <dot-text>How bright the panel is. A dark room needs less.</dot-text>
+          </dot-dialog>
+        </script>
+        <script type="text/plain" class="ex" data-title="Long content and a question">
+          <dot-button onclick="this.nextElementSibling.show()">Restart</dot-button>
+          <dot-dialog label="Restart the board" tone="warn">
+            <dot-text>The board stops drawing while it restarts, and comes back on the splash screen.</dot-text>
+            <dot-text muted>Unsaved changes are lost. Save them first to keep them.</dot-text>
+            <dot-text muted>A restart takes about ten seconds on a Raspberry Pi Zero 2 W, longer while it downloads new logos. The hub keeps its data, so the board catches up at once.</dot-text>
+            <dot-text muted>On a short screen this dialog scrolls inside its frame: the title and close icon stay put, and a chevron in the bottom edge shows there is more.</dot-text>
+            <dot-grid row>
+              <dot-button variant="primary" onclick="this.closest('dot-dialog').close()">Restart</dot-button>
+              <dot-button variant="ghost" onclick="this.closest('dot-dialog').close()">Cancel</dot-button>
+            </dot-grid>
+          </dot-dialog>
         </script>
       </section>
 
