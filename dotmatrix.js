@@ -1655,9 +1655,9 @@
       const room = cx - pad - 4;
       let cols = colsOf(st.text);
       if (cols.length > room) {
-        const dots = colsOf('…'), chars = textChars(st.text);
+        const dots = colsOf('\u2026'), chars = textChars(st.text);
         let n = chars.length;
-        do cols = layout([...chars.slice(0, --n), { ch: '…', a: false }], 'body');
+        do cols = layout([...chars.slice(0, --n), { ch: '\u2026', a: false }], 'body');
         while (n > 0 && cols.length > room);
         if (cols.length > room) cols = dots;
       }
