@@ -99,6 +99,7 @@
       <ul>
         <li><a href="#app">App</a></li>
         <li><a href="#bar">Bar</a></li>
+        <li><a href="#tabbar">Tab bar</a></li>
         <li><a href="#panel">Panel</a></li>
         <li><a href="#dialog">Dialog</a></li>
         <li><a href="#grid">Grid</a></li>
@@ -187,7 +188,7 @@
       <!-- ============================== Layout ============================== -->
       <section id="app">
         <dot-heading size="l">App</dot-heading>
-        <p><code>&lt;dot-app&gt;</code> The page. Put it straight inside <code>&lt;body&gt;</code> and everything else inside it. It applies the dark theme, shows the unlit grid, and centres each child in a column. A <code>&lt;dot-bar&gt;</code> as its first child spans the page and sits flush with the top.</p>
+        <p><code>&lt;dot-app&gt;</code> The page. Put it straight inside <code>&lt;body&gt;</code> and everything else inside it. It applies the dark theme, shows the unlit grid, and centres each child in a column. A <code>&lt;dot-bar&gt;</code> as its first child spans the page and sits flush with the top; a <code>&lt;dot-tabbar&gt;</code> as its last child spans the page and stays at the bottom of the screen.</p>
         <script type="text/plain" class="api">
           --dot-width | length | Width of the centred column. Default `1080px`.
         </script>
@@ -220,6 +221,47 @@
             <dot-icon slot="start" name="matrix" size="l"></dot-icon>
             <dot-status slot="end" state="online"></dot-status>
           </dot-bar>
+        </script>
+      </section>
+
+      <section id="tabbar">
+        <dot-heading size="l">Tab bar</dot-heading>
+        <p><code>&lt;dot-tabbar&gt;</code> The bottom navigation of a phone app: a row of <code>&lt;dot-tab&gt;</code>s sharing the width, each an icon over its label, with a rule along the top. As the last child of <code>&lt;dot-app&gt;</code> it spans the page, stays at the bottom of the screen and clears the home indicator. It has its own unlit grid, so the page scrolls under it. Elsewhere it is a plain row.</p>
+        <p>In <code>&lt;dot-app&gt;</code>, it sets <code>--dot-tabbar-height</code> on the page, so a sticky bar of your own sits above it with <code>bottom: var(--dot-tabbar-height, 0px)</code>. Hidden with <code>display: none</code> (say, on a wide screen that has the pages in the top bar), it sets <code>0px</code>.</p>
+        <script type="text/plain" class="api">
+          href    | URL | On a tab: makes it a link. Without it, the tab is a button.
+          icon    | icon name | On a tab: the icon over the label.
+          label   | text | On a tab: the label, or put it in the tab as text.
+          current | boolean | On a tab: the page you are on. It lights up, its icon in a pill, and gets `aria-current`.
+          disabled | boolean | On a tab: greyed out and not clickable.
+        </script>
+        <script type="text/plain" class="ex" data-title="Three pages">
+          <dot-tabbar>
+            <dot-tab href="#tabbar" icon="home" current>Home</dot-tab>
+            <dot-tab href="#tabbar" icon="matrix">Board</dot-tab>
+            <dot-tab href="#tabbar" icon="wifi">Hub</dot-tab>
+          </dot-tabbar>
+        </script>
+        <script type="text/plain" class="snippet">
+          <style>
+            /* Tabs on a phone, buttons in the top bar on a wider screen. */
+            @media (max-width: 599px) { dot-bar > .page { display: none; } }
+            @media (min-width: 600px) { dot-tabbar { display: none; } }
+            .savebar { position: sticky; bottom: var(--dot-tabbar-height, 0px); }
+          </style>
+
+          <dot-app>
+            <dot-bar label="Matrix 01">
+              <dot-button slot="end" class="page" href="/" icon="home" title="Home" variant="primary"></dot-button>
+              <dot-button slot="end" class="page" href="/network" icon="wifi" title="Network" variant="ghost"></dot-button>
+            </dot-bar>
+            <dot-panel label="Display">...</dot-panel>
+            <dot-matrix class="savebar">...</dot-matrix>
+            <dot-tabbar>
+              <dot-tab href="/" icon="home" current>Home</dot-tab>
+              <dot-tab href="/network" icon="wifi">Network</dot-tab>
+            </dot-tabbar>
+          </dot-app>
         </script>
       </section>
 

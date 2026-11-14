@@ -137,7 +137,7 @@
         <dot-led tone="off">Idle</dot-led>
       </dot-grid>
       <dot-grid row>
-        <dot-badge>v0.6</dot-badge>
+        <dot-badge>v0.7</dot-badge>
         <dot-badge tone="ok">Ready</dot-badge>
         <dot-badge tone="warn">82%</dot-badge>
         <dot-badge tone="err">Fault</dot-badge>
@@ -216,6 +216,13 @@
       <dot-text>Aligned to the grid of its own surface.</dot-text>
     </dot-matrix>
   </dot-panel>
+
+  <dot-tabbar id="tabs">
+    <dot-tab icon="home" current>Home</dot-tab>
+    <dot-tab icon="matrix">Panel</dot-tab>
+    <dot-tab icon="wifi">Network</dot-tab>
+    <dot-tab icon="info" disabled>About</dot-tab>
+  </dot-tabbar>
 </dot-app>
 <script>
   const $ = id => document.getElementById(id);
@@ -281,6 +288,13 @@
   $('marquee-text').addEventListener('input', e => marquee.setAttribute('text', e.target.value));
   $('marquee-speed').addEventListener('input', e => { marquee.speed = e.target.value; });
   $('marquee-pause').addEventListener('change', e => { marquee.paused = e.target.checked; });
+
+  // Tab bar: these tabs are buttons, so a press moves `current` to it.
+  $('tabs').addEventListener('click', e => {
+    const t = e.target.closest('dot-tab');
+    if (!t || t.disabled) return;
+    for (const o of $('tabs').querySelectorAll('dot-tab')) o.current = o === t;
+  });
 
   // Values: a live reading.
   setInterval(() => $('temp').setAttribute('value', (22 + Math.random() * 3).toFixed(1)), 1000);

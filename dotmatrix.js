@@ -1,11 +1,11 @@
 /*!
- * Dotmatrix v0.6.0 - dot-matrix web components for LED panel control pages.
+ * Dotmatrix v0.7.0 - dot-matrix web components for LED panel control pages.
  * The page is one grid of dots, like the HUB75 panels it controls.
  * Surfaces: <dot-matrix>, <dot-app>
  * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-marquee>
  * Controls: <dot-button>, <dot-slider>, <dot-toggle>, <dot-input>, <dot-select>
  * Status:   <dot-led>, <dot-badge>, <dot-status>
- * Layout:   <dot-bar>, <dot-panel>, <dot-dialog>, <dot-grid>, <dot-rule>
+ * Layout:   <dot-bar>, <dot-tabbar>, <dot-tab>, <dot-panel>, <dot-dialog>, <dot-grid>, <dot-rule>
  * No dependencies. Drop in with <script src="dotmatrix.js"></script>
  */
 (() => {
@@ -751,6 +751,10 @@
       margin-left:calc(-1 * max(16px,env(safe-area-inset-left,0px)));
       margin-right:calc(-1 * max(16px,env(safe-area-inset-right,0px)))}
     ::slotted(dot-bar:first-child){margin-top:calc(-12 * var(--dot-pitch,2px) - env(safe-area-inset-top,0px))}
+    ::slotted(dot-tabbar){width:auto;max-width:none;position:sticky;bottom:0;z-index:1;margin-top:auto;
+      margin-left:calc(-1 * max(16px,env(safe-area-inset-left,0px)));
+      margin-right:calc(-1 * max(16px,env(safe-area-inset-right,0px)))}
+    ::slotted(dot-tabbar:last-child){margin-bottom:calc(-24 * var(--dot-pitch,2px) - env(safe-area-inset-bottom,0px))}
   `;
   class DotApp extends DotMatrix {
     static css = APP_CSS;
@@ -2028,8 +2032,92 @@
     }
   }
 
+  /* ==================================================================
+   * <dot-tabbar>: the app's bottom navigation, as on a phone. Its
+   * <dot-tab>s share the width, with a rule along the top. It is a
+   * surface, so the page scrolls under its unlit grid and its tabs snap
+   * to its own grid. As the last child of <dot-app> it spans the page,
+   * stays at the bottom of the screen and clears the home indicator.
+   * There, it sets --dot-tabbar-height on the page while it shows, so a
+   * sticky bar of the page's own can sit above it.
+   * ================================================================== */
+  const TABBAR_CSS = `
+    .row{display:flex;margin:0 auto;max-width:var(--dot-width,1080px);
+      padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+    ::slotted(*){flex:1 1 0;min-width:0}
+  `;
+  class DotTabbar extends DotMatrix {
+    static css = TABBAR_CSS;
+    static tpl = '<dot-rule part="rule" aria-hidden="true"></dot-rule><nav class="row" part="tabs"><slot></slot></nav>';
+    constructor() {
+      super();
+      // Hidden by the page (display:none), it measures 0, so the bar above it drops back down.
+      this._ro = new ResizeObserver(() => {
+        document.documentElement.style.setProperty('--dot-tabbar-height', this.getBoundingClientRect().height + 'px');
+      });
+    }
+    connectedCallback() {
+      super.connectedCallback();
+      // Only the one docked in the app: a tab bar in a page's content stays out of the way.
+      if (this.parentElement && this.parentElement.localName === 'dot-app') this._ro.observe(this);
+    }
+    disconnectedCallback() {
+      super.disconnectedCallback();
+      this._ro.disconnect();
+      document.documentElement.style.removeProperty('--dot-tabbar-height');
+    }
+  }
+
+  /* ==================================================================
+   * <dot-tab>: one destination in a <dot-tabbar>, its icon over its
+   * label. A link with href, else a button. The `current` tab lights
+   * up, its icon in a primary button's pill. It fills its share of the
+   * bar, all of it a touch target.
+   * ================================================================== */
+  class DotTab extends DotButton {
+    static observedAttributes = [...DotButton.observedAttributes, 'current'];
+    static css = DotButton.css + `
+      :host{display:block}
+      button,a{width:100%;border-radius:calc(var(--dot-pitch,2px) * 4)}
+    `;
+    constructor() { super(); this._inline = false; }
+    get current() { return this.hasAttribute('current'); }
+    set current(v) { this.toggleAttribute('current', !!v); }
+    _sync() {
+      super._sync();
+      const b = this._btn;
+      if (this.current) b.setAttribute('aria-current', this.hasAttribute('href') ? 'page' : 'true');
+      else b.removeAttribute('aria-current');
+      // A tab never shows the button's busy animation.
+      animate(this, false);
+    }
+    _measure(wd) {
+      this._cols = layout(this._chars, 'body');
+      // The pill is twice as wide as it is tall, an odd size each way to centre the 7-dot icon.
+      const H = this._ph = odd(Math.max(9, px(24))), pad = this._pad = px(8);
+      this._gap = Math.max(2, px(4));
+      this._pw = odd(2 * H);
+      // The label's 9 rows leave room for descenders.
+      return { w: wd, h: pad + H + this._gap + 9 + pad };
+    }
+    _draw(p) {
+      const w = this._sz.w, H = this._ph, W = this._pw, x = (w - W) >> 1, y = this._pad;
+      const cur = this.current, dis = this.disabled, down = this._down && !dis, hover = this._hover && !dis;
+      let fill = cur ? ACCENT_DIM : 0, edge = cur ? ACCENT : 0, ink = FG, text = cur ? FG : MUTED;
+      if (hover) { fill = cur ? ACCENT_MID : DIM; text = FG; }
+      if (down) { fill = cur ? ACCENT : FG; ink = BLANK; }
+      if (dis) { fill = 0; edge = edge && DIM; ink = text = DIM; }
+      if (fill) p.fillRound(x, y, W, H, H >> 1, fill);
+      if (edge) p.strokeRound(x, y, W, H, H >> 1, edge);
+      const icon = this.getAttribute('icon');
+      if (icon) p.icon(icon, (w - 7) >> 1, y + ((H - 7) >> 1), ink);
+      // Centred; a label wider than the tab loses its ends, since the painter stops at the edges.
+      p.text(this._cols, (w - this._cols.length) >> 1, y + H + this._gap, 1, text, text);
+    }
+  }
+
   window.Dotmatrix = {
-    version: '0.6.0',
+    version: '0.7.0',
     theme,
     glyph,
     layout,
@@ -2068,4 +2156,6 @@
   define('dot-panel', DotPanel);
   define('dot-dialog', DotDialog);
   define('dot-bar', DotBar);
+  define('dot-tabbar', DotTabbar);
+  define('dot-tab', DotTab);
 })();
