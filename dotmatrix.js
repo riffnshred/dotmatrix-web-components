@@ -1,5 +1,5 @@
 /*!
- * Dotmatrix v0.8.0 - dot-matrix web components for LED panel control pages.
+ * Dotmatrix v0.8.1 - dot-matrix web components for LED panel control pages.
  * The page is one grid of dots, like the HUB75 panels it controls.
  * Surfaces: <dot-matrix>, <dot-app>
  * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-marquee>
@@ -2042,13 +2042,27 @@
    * to its own grid. As the last child of <dot-app> it spans the page,
    * stays at the bottom of the screen and clears the home indicator.
    * There, it sets --dot-tabbar-height on the page while it shows, so a
-   * sticky bar of the page's own can sit above it.
+   * sticky bar of the page's own can sit above it, and it steps aside
+   * while the on-screen keyboard is up.
    * ================================================================== */
   const TABBAR_CSS = `
+    :host([keyboard]){display:none}
     .row{display:flex;margin:0 auto;max-width:var(--dot-width,1080px);
       padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
     ::slotted(*){flex:1 1 0;min-width:0}
   `;
+  /** Whether the on-screen keyboard is up: a field has focus, and the visual viewport is well
+   *  short of the layout viewport. Phones shrink only the visual viewport for the keyboard
+   *  (interactive-widget=resizes-visual, the default), so the layout viewport keeps its height.
+   *  A zoom shrinks the visual viewport too, which its scale undoes, and the browser's own
+   *  toolbars are too short to pass for a keyboard. */
+  const VV = window.visualViewport;
+  function keyboardUp() {
+    let a = document.activeElement;
+    while (a && a.shadowRoot && a.shadowRoot.activeElement) a = a.shadowRoot.activeElement;
+    if (!VV || !a || !(a.matches('input, textarea, select') || a.isContentEditable)) return false;
+    return VV.height * VV.scale < document.documentElement.clientHeight * 0.85;
+  }
   class DotTabbar extends DotMatrix {
     static css = TABBAR_CSS;
     static tpl = '<dot-rule part="rule" aria-hidden="true"></dot-rule><nav class="row" part="tabs"><slot></slot></nav>';
@@ -2058,15 +2072,32 @@
       this._ro = new ResizeObserver(() => {
         document.documentElement.style.setProperty('--dot-tabbar-height', this.getBoundingClientRect().height + 'px');
       });
+      // While the keyboard is up, the bar would show above it whenever the visual viewport pans
+      // down the page, covering the field being typed in, so it steps aside (the keyboard
+      // attribute) and the page's own sticky bar drops to the bottom. The keyboard opening or
+      // closing resizes the visual viewport. Android's back gesture closes it without moving
+      // focus, so focus alone can't tell. Focus moves are checked a frame later, once focus
+      // has landed, so moving from one field to the next doesn't flash the bar.
+      this._kb = () => this.toggleAttribute('keyboard', keyboardUp());
+      this._kbSoon = () => requestAnimationFrame(this._kb);
     }
     connectedCallback() {
       super.connectedCallback();
       // Only the one docked in the app: a tab bar in a page's content stays out of the way.
-      if (this.parentElement && this.parentElement.localName === 'dot-app') this._ro.observe(this);
+      if (!this.parentElement || this.parentElement.localName !== 'dot-app') return;
+      this._ro.observe(this);
+      if (VV) VV.addEventListener('resize', this._kb);
+      document.addEventListener('focusin', this._kbSoon);
+      document.addEventListener('focusout', this._kbSoon);
+      this._kb();
     }
     disconnectedCallback() {
       super.disconnectedCallback();
       this._ro.disconnect();
+      if (VV) VV.removeEventListener('resize', this._kb);
+      document.removeEventListener('focusin', this._kbSoon);
+      document.removeEventListener('focusout', this._kbSoon);
+      this.removeAttribute('keyboard');
       document.documentElement.style.removeProperty('--dot-tabbar-height');
     }
   }
@@ -2126,7 +2157,7 @@
   }
 
   window.Dotmatrix = {
-    version: '0.8.0',
+    version: '0.8.1',
     theme,
     glyph,
     layout,
