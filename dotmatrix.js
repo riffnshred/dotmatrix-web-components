@@ -767,8 +767,11 @@
    * Subclasses implement _measure(dotsAcross) -> {w, h} and _draw(painter).
    * ================================================================== */
   const BOX = '<div class="box" part="dots"><canvas aria-hidden="true"></canvas></div>';
+  // Each component is its own stacking context, so the layers inside it (the native input or
+  // select laid over a field's dots) never rise above a sticky bar the page scrolls under it,
+  // where a tap on the bar would reach the field instead.
   const BASE_CSS = `
-    :host{display:block;position:relative}
+    :host{display:block;position:relative;isolation:isolate}
     :host([hidden]){display:none}
     .box{position:relative;height:0}
     canvas{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none}
