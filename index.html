@@ -226,12 +226,13 @@
 
       <section id="tabbar">
         <dot-heading size="l">Tab bar</dot-heading>
-        <p><code>&lt;dot-tabbar&gt;</code> The bottom navigation of a phone app: a row of <code>&lt;dot-tab&gt;</code>s sharing the width, each an icon over its label, with a rule along the top. As the last child of <code>&lt;dot-app&gt;</code> it spans the page, stays at the bottom of the screen and clears the home indicator. It has its own unlit grid, so the page scrolls under it. Elsewhere it is a plain row.</p>
+        <p><code>&lt;dot-tabbar&gt;</code> The bottom navigation of a phone app: a row of <code>&lt;dot-tab&gt;</code>s sharing the width, each an icon over its label, or a larger icon alone, with a rule along the top. As the last child of <code>&lt;dot-app&gt;</code> it spans the page, stays at the bottom of the screen and clears the home indicator. It has its own unlit grid, so the page scrolls under it. Elsewhere it is a plain row.</p>
         <p>In <code>&lt;dot-app&gt;</code>, it sets <code>--dot-tabbar-height</code> on the page, so a sticky bar of your own sits above it with <code>bottom: var(--dot-tabbar-height, 0px)</code>. Hidden with <code>display: none</code> (say, on a wide screen that has the pages in the top bar), it sets <code>0px</code>.</p>
         <script type="text/plain" class="api">
           href    | URL | On a tab: makes it a link. Without it, the tab is a button.
-          icon    | icon name | On a tab: the icon over the label.
+          icon    | icon name | On a tab: the icon over the label. With no label it draws at x2, in a taller pill.
           label   | text | On a tab: the label, or put it in the tab as text.
+          title   | text | On a tab with no label: its name, for screen readers.
           current | boolean | On a tab: the page you are on. It lights up, its icon in a pill, and gets `aria-current`.
           disabled | boolean | On a tab: greyed out and not clickable.
         </script>
@@ -240,6 +241,13 @@
             <dot-tab href="#tabbar" icon="home" current>Home</dot-tab>
             <dot-tab href="#tabbar" icon="matrix">Board</dot-tab>
             <dot-tab href="#tabbar" icon="wifi">Hub</dot-tab>
+          </dot-tabbar>
+        </script>
+        <script type="text/plain" class="ex" data-title="Icons alone">
+          <dot-tabbar>
+            <dot-tab href="#tabbar" icon="home" title="Home" current></dot-tab>
+            <dot-tab href="#tabbar" icon="matrix" title="Scoreboard"></dot-tab>
+            <dot-tab href="#tabbar" icon="wifi" title="Server"></dot-tab>
           </dot-tabbar>
         </script>
         <script type="text/plain" class="snippet">

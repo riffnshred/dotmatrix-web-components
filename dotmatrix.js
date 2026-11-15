@@ -1,5 +1,5 @@
 /*!
- * Dotmatrix v0.7.0 - dot-matrix web components for LED panel control pages.
+ * Dotmatrix v0.8.0 - dot-matrix web components for LED panel control pages.
  * The page is one grid of dots, like the HUB75 panels it controls.
  * Surfaces: <dot-matrix>, <dot-app>
  * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-marquee>
@@ -2075,7 +2075,8 @@
    * <dot-tab>: one destination in a <dot-tabbar>, its icon over its
    * label. A link with href, else a button. The `current` tab lights
    * up, its icon in a primary button's pill. It fills its share of the
-   * bar, all of it a touch target.
+   * bar, all of it a touch target. With an icon and no label, the icon
+   * draws at x2 in a taller pill, and its title names it.
    * ================================================================== */
   class DotTab extends DotButton {
     static observedAttributes = [...DotButton.observedAttributes, 'current'];
@@ -2096,15 +2097,20 @@
     }
     _measure(wd) {
       this._cols = layout(this._chars, 'body');
-      // The pill is twice as wide as it is tall, an odd size each way to centre the 7-dot icon.
-      const H = this._ph = odd(Math.max(9, px(24))), pad = this._pad = px(8);
+      // Without a label the icon takes the label's room: x2, and no label row.
+      const k = this._ik = !this._cols.length && this.getAttribute('icon') ? 2 : 1, n = 7 * k;
+      // The pill is twice as wide as it is tall, each side the icon's parity so it centres:
+      // odd around the 7-dot icon, even around the 14-dot one.
+      const fit = v => ((v - n) % 2 ? v + 1 : v);
+      const H = this._ph = fit(Math.max(n + 2 * k, px(k === 2 ? 40 : 24))), pad = this._pad = px(8);
       this._gap = Math.max(2, px(4));
-      this._pw = odd(2 * H);
+      this._pw = fit(2 * H);
+      if (k === 2) return { w: wd, h: pad + H + pad };
       // The label's 9 rows leave room for descenders.
       return { w: wd, h: pad + H + this._gap + 9 + pad };
     }
     _draw(p) {
-      const w = this._sz.w, H = this._ph, W = this._pw, x = (w - W) >> 1, y = this._pad;
+      const w = this._sz.w, H = this._ph, W = this._pw, x = (w - W) >> 1, y = this._pad, k = this._ik, n = 7 * k;
       const cur = this.current, dis = this.disabled, down = this._down && !dis, hover = this._hover && !dis;
       let fill = cur ? ACCENT_DIM : 0, edge = cur ? ACCENT : 0, ink = FG, text = cur ? FG : MUTED;
       if (hover) { fill = cur ? ACCENT_MID : DIM; text = FG; }
@@ -2113,14 +2119,14 @@
       if (fill) p.fillRound(x, y, W, H, H >> 1, fill);
       if (edge) p.strokeRound(x, y, W, H, H >> 1, edge);
       const icon = this.getAttribute('icon');
-      if (icon) p.icon(icon, (w - 7) >> 1, y + ((H - 7) >> 1), ink);
+      if (icon) p.icon(icon, (w - n) >> 1, y + ((H - n) >> 1), ink, k);
       // Centred; a label wider than the tab loses its ends, since the painter stops at the edges.
-      p.text(this._cols, (w - this._cols.length) >> 1, y + H + this._gap, 1, text, text);
+      if (this._cols.length) p.text(this._cols, (w - this._cols.length) >> 1, y + H + this._gap, 1, text, text);
     }
   }
 
   window.Dotmatrix = {
-    version: '0.7.0',
+    version: '0.8.0',
     theme,
     glyph,
     layout,

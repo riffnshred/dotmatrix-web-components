@@ -137,7 +137,7 @@
         <dot-led tone="off">Idle</dot-led>
       </dot-grid>
       <dot-grid row>
-        <dot-badge>v0.7</dot-badge>
+        <dot-badge>v0.8</dot-badge>
         <dot-badge tone="ok">Ready</dot-badge>
         <dot-badge tone="warn">82%</dot-badge>
         <dot-badge tone="err">Fault</dot-badge>
@@ -215,6 +215,12 @@
       <dot-heading size="m">Embedded</dot-heading>
       <dot-text>Aligned to the grid of its own surface.</dot-text>
     </dot-matrix>
+    <p class="plain">A &lt;dot-tabbar&gt; outside the app is a plain row. Tabs with no label draw their icon at x2:</p>
+    <dot-tabbar>
+      <dot-tab icon="home" title="Home" current></dot-tab>
+      <dot-tab icon="matrix" title="Panel"></dot-tab>
+      <dot-tab icon="wifi" title="Network"></dot-tab>
+    </dot-tabbar>
   </dot-panel>
 
   <dot-tabbar id="tabs">
