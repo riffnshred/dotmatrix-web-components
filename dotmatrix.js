@@ -1,11 +1,11 @@
 /*!
- * Dotmatrix v0.4.3 - dot-matrix web components for LED panel control pages.
+ * Dotmatrix v0.8.1 - dot-matrix web components for LED panel control pages.
  * The page is one grid of dots, like the HUB75 panels it controls.
  * Surfaces: <dot-matrix>, <dot-app>
  * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-marquee>
- * Controls: <dot-button>, <dot-slider>, <dot-toggle>, <dot-input>
+ * Controls: <dot-button>, <dot-slider>, <dot-toggle>, <dot-input>, <dot-select>
  * Status:   <dot-led>, <dot-badge>, <dot-status>
- * Layout:   <dot-bar>, <dot-panel>, <dot-grid>, <dot-rule>
+ * Layout:   <dot-bar>, <dot-tabbar>, <dot-tab>, <dot-panel>, <dot-dialog>, <dot-grid>, <dot-rule>
  * No dependencies. Drop in with <script src="dotmatrix.js"></script>
  */
 (() => {
@@ -509,8 +509,12 @@
     return REACH - r0;
   }
 
-  /** Nearest <dot-matrix>/<dot-app> around el, crossing shadow roots. */
+  /**
+   * Nearest surface around el (<dot-matrix>, <dot-app>, <dot-dialog>), crossing shadow roots.
+   * A dialog is a surface and a component at once, and paints its own frame on its own grid.
+   */
   function surfaceOf(el) {
+    if (el._isSurface) return el;
     let n = el;
     while ((n = n.parentNode || n.host)) if (n._isSurface) return n;
     return null;
@@ -535,7 +539,8 @@
       return s => {
         let o = seen.get(s);
         if (!o) {
-          if (s) { const r = s.getBoundingClientRect(); o = [Math.round(r.left * dpr), Math.round(r.top * dpr)]; }
+          // A surface's grid starts at the corner of its _grid box (the dialog's sheet), else its own.
+          if (s) { const r = (s._grid || s).getBoundingClientRect(); o = [Math.round(r.left * dpr), Math.round(r.top * dpr)]; }
           else o = [Math.round(-scrollX * dpr), Math.round(-scrollY * dpr)];
           seen.set(s, o);
         }
@@ -604,10 +609,13 @@
     if (started) return;
     started = true;
     updatePitch();
-    // Anything that can move a component: DOM changes, page size, window size, zoom.
+    // Anything that can move a component: DOM changes, page size, window size, zoom, and
+    // scrolling, which moves a sticky or fixed box against its surface's grid. Captured, so a
+    // scrolling box inside the page counts too. Only what moved is placed again.
     new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true, attributes: true, characterData: true });
     ro.observe(document.documentElement);
     addEventListener('resize', onResize);
+    addEventListener('scroll', schedule, { capture: true, passive: true });
     watchDpr();
   }
 
@@ -709,6 +717,13 @@
       background-origin:border-box;background-repeat:repeat;image-rendering:pixelated}
     :host([hidden]){display:none}
   `;
+  /** CSS that draws the unlit grid behind `sel`, in el's colours: a surface's background. */
+  function unlitCSS(el, sel) {
+    const cs = getComputedStyle(el), v = n => cs.getPropertyValue(n).trim();
+    const bg = rgb(v('--dot-bg'), '#000000'), fg = rgb(v('--dot-fg'), '#F2F2EE');
+    const size = TILE * G.pcss + 'px';
+    return G.unlit > 0 ? `${sel}{background-image:url(${tileURL(hex(mix(fg, bg, G.unlit)))});background-size:${size} ${size}}` : '';
+  }
   class DotMatrix extends HTMLElement {
     constructor() {
       super();
@@ -721,15 +736,7 @@
     connectedCallback() { surfaces.add(this); start(); this._skin(); schedule(); }
     disconnectedCallback() { surfaces.delete(this); }
     /** Draw the unlit grid in this surface's colours. Call after changing its --dot-fg or --dot-bg. */
-    _skin() {
-      if (!G.pdp) return;
-      const cs = getComputedStyle(this), v = n => cs.getPropertyValue(n).trim();
-      const bg = rgb(v('--dot-bg'), '#000000'), fg = rgb(v('--dot-fg'), '#F2F2EE');
-      const size = TILE * G.pcss + 'px';
-      this._skinEl.textContent = G.unlit > 0
-        ? `:host{background-image:url(${tileURL(hex(mix(fg, bg, G.unlit)))});background-size:${size} ${size}}`
-        : '';
-    }
+    _skin() { if (G.pdp) this._skinEl.textContent = unlitCSS(this, ':host'); }
   }
 
   const APP_CSS = `
@@ -744,6 +751,10 @@
       margin-left:calc(-1 * max(16px,env(safe-area-inset-left,0px)));
       margin-right:calc(-1 * max(16px,env(safe-area-inset-right,0px)))}
     ::slotted(dot-bar:first-child){margin-top:calc(-12 * var(--dot-pitch,2px) - env(safe-area-inset-top,0px))}
+    ::slotted(dot-tabbar){width:auto;max-width:none;position:sticky;bottom:0;z-index:1;margin-top:auto;
+      margin-left:calc(-1 * max(16px,env(safe-area-inset-left,0px)));
+      margin-right:calc(-1 * max(16px,env(safe-area-inset-right,0px)))}
+    ::slotted(dot-tabbar:last-child){margin-bottom:calc(-24 * var(--dot-pitch,2px) - env(safe-area-inset-bottom,0px))}
   `;
   class DotApp extends DotMatrix {
     static css = APP_CSS;
@@ -756,8 +767,11 @@
    * Subclasses implement _measure(dotsAcross) -> {w, h} and _draw(painter).
    * ================================================================== */
   const BOX = '<div class="box" part="dots"><canvas aria-hidden="true"></canvas></div>';
+  // Each component is its own stacking context, so the layers inside it (the native input or
+  // select laid over a field's dots) never rise above a sticky bar the page scrolls under it,
+  // where a tap on the bar would reach the field instead.
   const BASE_CSS = `
-    :host{display:block;position:relative}
+    :host{display:block;position:relative;isolation:isolate}
     :host([hidden]){display:none}
     .box{position:relative;height:0}
     canvas{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none}
@@ -1010,7 +1024,9 @@
    * outline; primary a dim accent fill with an accent edge; ghost the
    * label alone. Pressed, it fills and knocks the label out. With an
    * icon and no text it is round, and its title names it. It is
-   * form-associated: type="submit" or "reset" acts on its form.
+   * form-associated: type="submit" or "reset" acts on its form. With
+   * `href` it is a link instead: the same dots around a real <a>, so
+   * open-in-new-tab and the browser's history work.
    * ================================================================== */
   const BUTTON_H = { s: 32, m: 40, l: 52 };
   // Browsers submit a form on Enter only through a native submit button. When a form's first
@@ -1034,15 +1050,16 @@
     static textAttr = 'label';
     static delegatesFocus = true;
     static formAssociated = true;
-    static observedAttributes = ['label', 'icon', 'title', 'variant', 'size', 'disabled', 'loading'];
+    static observedAttributes = ['label', 'icon', 'title', 'variant', 'size', 'disabled', 'loading',
+      'href', 'target', 'rel', 'download'];
     static css = `
       :host{display:inline-block;vertical-align:middle}
-      button{all:unset;display:block;position:relative;cursor:pointer;border-radius:999px;
+      button,a{all:unset;display:block;position:relative;cursor:pointer;border-radius:999px;
         touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-      button::before{${HIT}}
-      button:focus-visible{${FOCUS}}
-      button:disabled{cursor:default}
-      :host([loading]) button{cursor:progress}
+      button::before,a::before{${HIT}}
+      button:focus-visible,a:focus-visible{${FOCUS}}
+      button:disabled,a:not([href]){cursor:default}
+      :host([loading]) button,:host([loading]) a{cursor:progress}
     `;
     static tpl = `<button part="button" type="button"><span class="sr"></span>${BOX}</button>`;
     constructor() {
@@ -1050,20 +1067,36 @@
       this._inline = true;
       this._int = this.attachInternals ? this.attachInternals() : null;
       readyEnter();
-      // Registered first, so it can swallow clicks while disabled or loading.
+      // Registered first, so it can swallow clicks while disabled or loading (a link's too).
       this.addEventListener('click', e => {
         if (this.disabled || this.loading) { e.preventDefault(); e.stopImmediatePropagation(); return; }
+        if (this.hasAttribute('href')) return;
         const form = this._int && this._int.form, type = this.getAttribute('type');
         if (form && type === 'submit') form.requestSubmit();
         if (form && type === 'reset') form.reset();
       });
-      const b = this._btn = this.$('button');
+      this._wire(this._btn = this.$('button'));
+    }
+    /** Hover and press states for the inner <button> or <a>. */
+    _wire(b) {
       const set = (k, v) => { if (this[k] !== v) { this[k] = v; this._dirty = true; schedule(); } };
       b.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') set('_hover', true); });
       b.addEventListener('pointerleave', () => { set('_hover', false); set('_down', false); });
       b.addEventListener('pointerdown', e => { if (e.button === 0) set('_down', true); });
       for (const t of ['pointerup', 'pointercancel', 'keyup', 'blur']) b.addEventListener(t, () => set('_down', false));
-      b.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') set('_down', true); });
+      // Space presses a button; a link answers Enter only.
+      b.addEventListener('keydown', e => { if (e.key === 'Enter' || (e.key === ' ' && b.localName === 'button')) set('_down', true); });
+    }
+    /** Swap the inner element between <button> and <a>, keeping its dots. */
+    _mount(link) {
+      const old = this._btn, b = document.createElement(link ? 'a' : 'button');
+      b.setAttribute('part', 'button');
+      if (!link) b.type = 'button';
+      b.append(...old.childNodes);
+      old.replaceWith(b);
+      this._btn = b;
+      this._hover = this._down = false;
+      this._wire(b);
     }
     get disabled() { return this.hasAttribute('disabled'); }
     set disabled(v) { this.toggleAttribute('disabled', !!v); }
@@ -1074,8 +1107,19 @@
       super._sync();
       const text = this._chars.map(c => c.ch).join('');
       this.$('.sr').textContent = text || this.getAttribute('title') || this.getAttribute('icon') || '';
-      this._btn.disabled = this.disabled;
-      this._btn.setAttribute('aria-busy', String(this.loading));
+      const href = this.getAttribute('href'), link = href != null;
+      if (link !== (this._btn.localName === 'a')) this._mount(link);
+      const b = this._btn;
+      if (link) {
+        // A disabled link has no href, so it is not followed or focused; aria-disabled says why.
+        if (this.disabled) { b.removeAttribute('href'); b.setAttribute('role', 'link'); b.setAttribute('aria-disabled', 'true'); }
+        else { b.setAttribute('href', href); b.removeAttribute('role'); b.removeAttribute('aria-disabled'); }
+        for (const a of ['target', 'rel', 'download']) {
+          if (this.hasAttribute(a)) b.setAttribute(a, this.getAttribute(a));
+          else b.removeAttribute(a);
+        }
+      } else b.disabled = this.disabled;
+      b.setAttribute('aria-busy', String(this.loading));
       animate(this, this.loading && !this.disabled);
     }
     _frame(now) { return Math.floor(now / 200) % 3; }
@@ -1517,6 +1561,125 @@
   }
 
   /* ==================================================================
+   * <dot-select>: a drop-down drawn in dots around a native <select>
+   * child, the way <dot-input> draws an <input>. The select stays in the
+   * page, laid invisibly over the field, so a tap opens the platform's
+   * own picker (a wheel or sheet on a phone), and forms and htmx post it
+   * like any select. The dots draw the label, frame, the chosen option
+   * and a chevron. An option with an empty value draws dim, as a
+   * placeholder. One choice only: `multiple` and `size` are not drawn.
+   * ================================================================== */
+  const SELECT_EVENTS = ['input', 'change', 'focus', 'blur'];
+  class DotSelect extends DotElement {
+    static observedAttributes = ['label', 'note', 'tone', 'accent'];
+    static css = `
+      canvas{z-index:1;pointer-events:none}
+      .box{--_x:0px;--_y:0px;--_w:100%;--_h:44px}
+      ::slotted(:not(select)){display:none!important}
+      ::slotted(select){position:absolute!important;z-index:2!important;display:block!important;box-sizing:border-box!important;
+        left:var(--_x)!important;top:var(--_y)!important;width:var(--_w)!important;height:var(--_h)!important;
+        min-width:0!important;max-width:none!important;min-height:0!important;max-height:none!important;
+        margin:0!important;padding:0!important;border:0!important;border-radius:0!important;outline:none!important;
+        box-shadow:none!important;opacity:0!important;font-size:16px!important;cursor:pointer;
+        -webkit-tap-highlight-color:transparent}
+      ::slotted(select:disabled){cursor:default}
+    `;
+    static tpl = '<div class="box" part="dots"><canvas aria-hidden="true"></canvas><slot></slot></div>';
+    constructor() {
+      super();
+      this._sel = null;
+      this._mine = {};
+      this._poke = () => { this._dirty = true; schedule(); };
+      this._onReset = () => setTimeout(this._poke);
+      // Options added, removed, renamed or selected in the page, and the select's own state.
+      this._lmo = new MutationObserver(() => this.invalidate());
+      this.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') { this._hover = true; this._poke(); } });
+      this.addEventListener('pointerleave', () => { if (this._hover) { this._hover = false; this._poke(); } });
+    }
+    get value() { return this._sel ? this._sel.value : ''; }
+    set value(v) { if (this._sel) { this._sel.value = v; this.invalidate(); } }
+    get disabled() { return !!this._sel && this._sel.matches(':disabled'); }
+    focus(o) { if (this._sel) this._sel.focus(o); }
+    connectedCallback() {
+      this._lmo.observe(this, { childList: true, subtree: true, characterData: true, attributes: true,
+        attributeFilter: ['disabled', 'selected', 'label', 'value'] });
+      super.connectedCallback();
+    }
+    disconnectedCallback() { this._lmo.disconnect(); super.disconnectedCallback(); }
+    _bind() {
+      const sel = this.querySelector(':scope > select');
+      if (sel === this._sel) return;
+      if (this._sel) for (const t of SELECT_EVENTS) this._sel.removeEventListener(t, this._poke);
+      if (this._form) this._form.removeEventListener('reset', this._onReset);
+      this._sel = sel;
+      this._form = sel && sel.form;
+      if (sel) for (const t of SELECT_EVENTS) sel.addEventListener(t, this._poke);
+      if (this._form) this._form.addEventListener('reset', this._onReset);
+    }
+    _sync() {
+      this._bind();
+      const label = this.getAttribute('label') || '', note = this.getAttribute('note') || '', sel = this._sel;
+      this._labC = colsOf(label);
+      this._noteChars = textChars(note);
+      if (sel) {
+        // Name and describe the select from label and note, unless the page already did.
+        for (const [a, v] of [['aria-label', label], ['aria-description', note]]) {
+          const mine = this._mine[a] === sel;
+          if (!mine && (sel.hasAttribute(a) || (a === 'aria-label' &&
+            ((sel.labels && sel.labels.length) || sel.hasAttribute('aria-labelledby'))))) continue;
+          if (v) { sel.setAttribute(a, v); this._mine[a] = sel; }
+          else if (mine) { sel.removeAttribute(a); this._mine[a] = null; }
+        }
+      }
+    }
+    _measure(wd) {
+      const sel = this._sel, H = this._fh = odd(Math.max(13, px(44)));
+      this._pad = Math.max(3, px(12));
+      const fy = this._fy = this._labC.length ? 9 + px(6) : 0;
+      const o = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
+      this._st = { on: !!sel && document.activeElement === sel, dis: this.disabled,
+        text: o ? o.label || o.text : '', ph: !o || o.value === '' };
+      this._note = wd > 0 && this._noteChars.length
+        ? wrapLines(this._noteChars, wd, 'body', 1).map(l => layout(l, 'body')) : [];
+      this._ny = fy + H + px(6);
+      this._place(wd);
+      return { w: wd, h: this._note.length ? this._ny + this._note.length * 12 - 3 : fy + H };
+    }
+    /** Lay the invisible select over the drawn field, so a tap anywhere on it opens the picker. */
+    _place(wd = this._sz.w) {
+      if (!this._sel) return;
+      const P = G.pcss, b = this._box.style, set = (k, v) => b.setProperty(k, v + 'px');
+      set('--_x', this._lx || 0);
+      set('--_y', (this._ly || 0) + this._fy * P);
+      set('--_w', wd * P);
+      set('--_h', this._fh * P);
+    }
+    _moved() { this._place(); }
+    _draw(p) {
+      const st = this._st, w = this._sz.w, H = this._fh, fy = this._fy, pad = this._pad;
+      const toned = this.hasAttribute('tone') || this.hasAttribute('accent');
+      p.text(this._labC, 0, 0, 1, st.dis ? DIM : MUTED);
+      p.strokeRound(0, fy, w, H, 2, st.dis ? DIM : toned ? TONE : st.on ? ACCENT : this._hover ? FG : MUTED);
+      const ty = fy + ((H - 7) >> 1), cx = w - pad - 7;
+      p.icon('chevron', cx, ty, st.dis ? DIM : st.on ? ACCENT : FG);
+      // The chosen option, cut with an ellipsis where it would run into the chevron.
+      const room = cx - pad - 4;
+      let cols = colsOf(st.text);
+      if (cols.length > room) {
+        const dots = colsOf('\u2026'), chars = textChars(st.text);
+        let n = chars.length;
+        do cols = layout([...chars.slice(0, --n), { ch: '\u2026', a: false }], 'body');
+        while (n > 0 && cols.length > room);
+        if (cols.length > room) cols = dots;
+      }
+      p.clip(pad, -REACH, Math.max(0, room), H + fy + 2 * REACH);
+      p.text(cols, pad, ty, 1, st.dis ? MUTED : st.ph ? DIM : FG);
+      p.clip();
+      this._note.forEach((cols, i) => p.text(cols, 0, this._ny + i * 12, 1, toned ? TONE : MUTED));
+    }
+  }
+
+  /* ==================================================================
    * <dot-led>: an indicator light (3x3 dots; size s: 1, l: 5) in its
    * tone, with optional text beside it. tone="off" draws it dim.
    * `blink` (or blink="fast") flashes it; `label` names it for readers.
@@ -1717,6 +1880,126 @@
   }
 
   /* ==================================================================
+   * <dot-dialog>: a modal panel over the dimmed page. Underneath it is
+   * a native modal <dialog>, so focus stays inside, Esc closes it and
+   * the page behind is inert; a tap on the dimmed page closes it too.
+   * It is a surface of its own: its sheet shows the unlit grid, and its
+   * content snaps to that grid. The frame is a panel's, inset from the
+   * sheet's edge, with the title set into the top edge and a close icon
+   * at its right. Long content scrolls inside the frame while the title
+   * stays put, and a chevron in the bottom edge says there is more.
+   * Open it with show() or the `open` attribute.
+   * ================================================================== */
+  // Unlit dots between the sheet's edge and the frame. The sheet's padding is DIALOG_M - 3 on top
+  // (the title line's first row) and DIALOG_M + 1 on the other sides (the margin and the frame).
+  const DIALOG_M = 5;
+  const DIALOG_CSS = `
+    :host{display:contents}
+    dialog{padding:0;border:0;margin:auto;max-width:none;max-height:none;overflow:visible;
+      background:transparent;color:inherit;outline:none}
+    dialog::backdrop{background:color-mix(in srgb,var(--dot-bg,#000) 80%,transparent)}
+    .sheet{position:relative;box-sizing:border-box;display:flex;flex-direction:column;
+      background-color:var(--dot-bg,#000);background-origin:border-box;background-repeat:repeat;image-rendering:pixelated;
+      width:min(var(--dot-dialog-width,560px),100vw - 32px);
+      max-height:calc(100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+      padding:calc(var(--dot-pitch,2px) * 2) calc(var(--dot-pitch,2px) * 6) calc(var(--dot-pitch,2px) * 6)}
+    /* Whole dots, so the unlit grid ends on a whole dot at the right and the bottom. */
+    @supports (width:round(down,10px,3px)){
+      .sheet{width:round(down,min(var(--dot-dialog-width,560px),100vw - 32px),var(--dot-pitch,2px));
+        max-height:round(down,100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px),var(--dot-pitch,2px))}
+    }
+    .sheet > .box{position:absolute;left:0;right:0;top:0;pointer-events:none}
+    .head{flex:none;height:calc(var(--dot-pitch,2px) * 7)}
+    .body{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:none;
+      display:flex;flex-direction:column;gap:calc(var(--dot-pitch,2px) * 10);
+      padding:calc(var(--dot-pitch,2px) * 6) calc(var(--dot-pitch,2px) * 7) calc(var(--dot-pitch,2px) * 7)}
+    .body::-webkit-scrollbar{display:none}
+    .x{all:unset;position:absolute;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+    .x::before{content:"";position:absolute;inset:calc(50% - 22px)}
+    .x:focus-visible{${FOCUS}}
+  `;
+  class DotDialog extends DotElement {
+    static observedAttributes = ['label', 'open', 'tone', 'accent'];
+    static css = DIALOG_CSS;
+    static tpl = '<style class="skin"></style><dialog part="dialog" aria-labelledby="t"><div class="sheet" part="sheet">' + BOX +
+      '<div class="head" part="head" role="heading" aria-level="2"><span class="sr" id="t"></span></div>' +
+      '<button class="x" part="close" type="button" aria-label="Close"></button>' +
+      '<div class="body" part="body"><slot></slot></div></div></dialog>';
+    constructor() {
+      super();
+      this._isSurface = true;
+      // The frame measures the sheet after its content has been sized, as a panel's does.
+      this._late = true;
+      this._skinEl = this.$('.skin');
+      this._grid = this.$('.sheet');
+      this._body = this.$('.body');
+      // A scroll in a shadow root never reaches the page's listener (scroll events are not composed),
+      // so the body schedules the layout pass itself: the content snaps back onto the grid, and the
+      // chevron follows.
+      this._body.addEventListener('scroll', schedule, { passive: true });
+      const d = this._dlg = this.$('dialog'), x = this._x = this.$('.x');
+      x.addEventListener('click', () => this.close());
+      x.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') this._lit(true); });
+      x.addEventListener('pointerleave', () => this._lit(false));
+      // A tap on the dimmed page closes it, but not a drag that only ends there (selecting text).
+      d.addEventListener('pointerdown', e => { this._out = e.target === d; });
+      d.addEventListener('click', e => { if (e.target === d && this._out) this.close(); });
+      // However it closed (Esc, the icon, a tap outside, close()), the host follows and tells the page.
+      // The event comes a task later, so a dialog shown again in between stays open.
+      d.addEventListener('close', () => {
+        if (d.open) return;
+        this.open = false;
+        this.dispatchEvent(new Event('close'));
+      });
+    }
+    get open() { return this.hasAttribute('open'); }
+    set open(v) { this.toggleAttribute('open', !!v); }
+    show() { this.open = true; }
+    close() { this.open = false; }
+    connectedCallback() { surfaces.add(this); super.connectedCallback(); this._skin(); ro.observe(this._grid); }
+    disconnectedCallback() { surfaces.delete(this); ro.unobserve(this._grid); super.disconnectedCallback(); }
+    /** Draw the unlit grid on the sheet in this dialog's colours. */
+    _skin() { if (G.pdp) this._skinEl.textContent = unlitCSS(this, '.sheet'); }
+    _lit(v) { if (this._hover !== v) { this._hover = v; this._dirty = true; schedule(); } }
+    _sync() {
+      const label = this.getAttribute('label') || '', d = this._dlg;
+      this.$('.sr').textContent = label;
+      this._title = colsOf(label, 'head');
+      if (!this.isConnected || this.open === d.open) return;
+      if (this.open) { d.showModal(); this._body.scrollTop = 0; }
+      else d.close();
+    }
+    _measure(wd) {
+      if (!this._dlg.open) return { w: 0, h: 0 };
+      const H = this._grid.getBoundingClientRect().height * G.dpr, b = this._body;
+      // More below: the chevron in the bottom edge.
+      const more = b.scrollTop + b.clientHeight < b.scrollHeight - 1;
+      if (more !== this._more) { this._more = more; this._dirty = true; }
+      // The close button lies over its icon, 7 dots square in the title line.
+      const k = wd + ',' + G.pcss;
+      if (k !== this._xk) {
+        this._xk = k;
+        const s = this._x.style, d = G.pcss;
+        s.left = (wd - DIALOG_M - 15) * d + 'px';
+        s.top = (DIALOG_M - 3) * d + 'px';
+        s.width = s.height = 7 * d + 'px';
+      }
+      return { w: wd, h: Math.floor(H / G.pdp + 1e-3) };
+    }
+    _draw(p) {
+      const { w, h } = this._sz, M = DIALOG_M, cx = w - M - 15, tx = M + 8;
+      if (w < 2 * M + 30 || h < 2 * M + 8) return;
+      p.strokeRound(M, M, w - 2 * M, h - 2 * M, 2, DIM);
+      // The title stops short of the close icon.
+      const t = this._title.slice(0, Math.max(0, cx - 4 - tx));
+      if (t.length) { p.rect(tx - 2, M, t.length + 4, 1, 0); p.text(t, tx, M - 3, 1, TONE); }
+      p.rect(cx - 2, M, 11, 1, 0);
+      p.icon('close', cx, M - 3, this._hover ? FG : MUTED);
+      if (this._more) { const y = h - M - 1; p.rect(cx - 2, y, 11, 1, 0); p.icon('chevron', cx, y - 3, MUTED); }
+    }
+  }
+
+  /* ==================================================================
    * <dot-bar>: the app's top bar. A heading from `label`, slots start,
    * default and end, and a rule across the page below. As the first
    * child of <dot-app> it spans the page and clears the notch.
@@ -1752,8 +2035,129 @@
     }
   }
 
+  /* ==================================================================
+   * <dot-tabbar>: the app's bottom navigation, as on a phone. Its
+   * <dot-tab>s share the width, with a rule along the top. It is a
+   * surface, so the page scrolls under its unlit grid and its tabs snap
+   * to its own grid. As the last child of <dot-app> it spans the page,
+   * stays at the bottom of the screen and clears the home indicator.
+   * There, it sets --dot-tabbar-height on the page while it shows, so a
+   * sticky bar of the page's own can sit above it, and it steps aside
+   * while the on-screen keyboard is up.
+   * ================================================================== */
+  const TABBAR_CSS = `
+    :host([keyboard]){display:none}
+    .row{display:flex;margin:0 auto;max-width:var(--dot-width,1080px);
+      padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+    ::slotted(*){flex:1 1 0;min-width:0}
+  `;
+  /** Whether the on-screen keyboard is up: a field has focus, and the visual viewport is well
+   *  short of the layout viewport. Phones shrink only the visual viewport for the keyboard
+   *  (interactive-widget=resizes-visual, the default), so the layout viewport keeps its height.
+   *  A zoom shrinks the visual viewport too, which its scale undoes, and the browser's own
+   *  toolbars are too short to pass for a keyboard. */
+  const VV = window.visualViewport;
+  function keyboardUp() {
+    let a = document.activeElement;
+    while (a && a.shadowRoot && a.shadowRoot.activeElement) a = a.shadowRoot.activeElement;
+    if (!VV || !a || !(a.matches('input, textarea, select') || a.isContentEditable)) return false;
+    return VV.height * VV.scale < document.documentElement.clientHeight * 0.85;
+  }
+  class DotTabbar extends DotMatrix {
+    static css = TABBAR_CSS;
+    static tpl = '<dot-rule part="rule" aria-hidden="true"></dot-rule><nav class="row" part="tabs"><slot></slot></nav>';
+    constructor() {
+      super();
+      // Hidden by the page (display:none), it measures 0, so the bar above it drops back down.
+      this._ro = new ResizeObserver(() => {
+        document.documentElement.style.setProperty('--dot-tabbar-height', this.getBoundingClientRect().height + 'px');
+      });
+      // While the keyboard is up, the bar would show above it whenever the visual viewport pans
+      // down the page, covering the field being typed in, so it steps aside (the keyboard
+      // attribute) and the page's own sticky bar drops to the bottom. The keyboard opening or
+      // closing resizes the visual viewport. Android's back gesture closes it without moving
+      // focus, so focus alone can't tell. Focus moves are checked a frame later, once focus
+      // has landed, so moving from one field to the next doesn't flash the bar.
+      this._kb = () => this.toggleAttribute('keyboard', keyboardUp());
+      this._kbSoon = () => requestAnimationFrame(this._kb);
+    }
+    connectedCallback() {
+      super.connectedCallback();
+      // Only the one docked in the app: a tab bar in a page's content stays out of the way.
+      if (!this.parentElement || this.parentElement.localName !== 'dot-app') return;
+      this._ro.observe(this);
+      if (VV) VV.addEventListener('resize', this._kb);
+      document.addEventListener('focusin', this._kbSoon);
+      document.addEventListener('focusout', this._kbSoon);
+      this._kb();
+    }
+    disconnectedCallback() {
+      super.disconnectedCallback();
+      this._ro.disconnect();
+      if (VV) VV.removeEventListener('resize', this._kb);
+      document.removeEventListener('focusin', this._kbSoon);
+      document.removeEventListener('focusout', this._kbSoon);
+      this.removeAttribute('keyboard');
+      document.documentElement.style.removeProperty('--dot-tabbar-height');
+    }
+  }
+
+  /* ==================================================================
+   * <dot-tab>: one destination in a <dot-tabbar>, its icon over its
+   * label. A link with href, else a button. The `current` tab lights
+   * up, its icon in a primary button's pill. It fills its share of the
+   * bar, all of it a touch target. With an icon and no label, the icon
+   * draws at x2 in a taller pill, and its title names it.
+   * ================================================================== */
+  class DotTab extends DotButton {
+    static observedAttributes = [...DotButton.observedAttributes, 'current'];
+    static css = DotButton.css + `
+      :host{display:block}
+      button,a{width:100%;border-radius:calc(var(--dot-pitch,2px) * 4)}
+    `;
+    constructor() { super(); this._inline = false; }
+    get current() { return this.hasAttribute('current'); }
+    set current(v) { this.toggleAttribute('current', !!v); }
+    _sync() {
+      super._sync();
+      const b = this._btn;
+      if (this.current) b.setAttribute('aria-current', this.hasAttribute('href') ? 'page' : 'true');
+      else b.removeAttribute('aria-current');
+      // A tab never shows the button's busy animation.
+      animate(this, false);
+    }
+    _measure(wd) {
+      this._cols = layout(this._chars, 'body');
+      // Without a label the icon takes the label's room: x2, and no label row.
+      const k = this._ik = !this._cols.length && this.getAttribute('icon') ? 2 : 1, n = 7 * k;
+      // The pill is twice as wide as it is tall, each side the icon's parity so it centres:
+      // odd around the 7-dot icon, even around the 14-dot one.
+      const fit = v => ((v - n) % 2 ? v + 1 : v);
+      const H = this._ph = fit(Math.max(n + 2 * k, px(k === 2 ? 40 : 24))), pad = this._pad = px(8);
+      this._gap = Math.max(2, px(4));
+      this._pw = fit(2 * H);
+      if (k === 2) return { w: wd, h: pad + H + pad };
+      // The label's 9 rows leave room for descenders.
+      return { w: wd, h: pad + H + this._gap + 9 + pad };
+    }
+    _draw(p) {
+      const w = this._sz.w, H = this._ph, W = this._pw, x = (w - W) >> 1, y = this._pad, k = this._ik, n = 7 * k;
+      const cur = this.current, dis = this.disabled, down = this._down && !dis, hover = this._hover && !dis;
+      let fill = cur ? ACCENT_DIM : 0, edge = cur ? ACCENT : 0, ink = FG, text = cur ? FG : MUTED;
+      if (hover) { fill = cur ? ACCENT_MID : DIM; text = FG; }
+      if (down) { fill = cur ? ACCENT : FG; ink = BLANK; }
+      if (dis) { fill = 0; edge = edge && DIM; ink = text = DIM; }
+      if (fill) p.fillRound(x, y, W, H, H >> 1, fill);
+      if (edge) p.strokeRound(x, y, W, H, H >> 1, edge);
+      const icon = this.getAttribute('icon');
+      if (icon) p.icon(icon, (w - n) >> 1, y + ((H - n) >> 1), ink, k);
+      // Centred; a label wider than the tab loses its ends, since the painter stops at the edges.
+      if (this._cols.length) p.text(this._cols, (w - this._cols.length) >> 1, y + H + this._gap, 1, text, text);
+    }
+  }
+
   window.Dotmatrix = {
-    version: '0.4.3',
+    version: '0.8.1',
     theme,
     glyph,
     layout,
@@ -1784,10 +2188,14 @@
   define('dot-slider', DotSlider);
   define('dot-toggle', DotToggle);
   define('dot-input', DotInput);
+  define('dot-select', DotSelect);
   define('dot-led', DotLed);
   define('dot-badge', DotBadge);
   define('dot-status', DotStatus);
   define('dot-grid', DotGrid);
   define('dot-panel', DotPanel);
+  define('dot-dialog', DotDialog);
   define('dot-bar', DotBar);
+  define('dot-tabbar', DotTabbar);
+  define('dot-tab', DotTab);
 })();

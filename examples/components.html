@@ -115,6 +115,14 @@
       <dot-input label="Serial number"><input value="DM-0042" disabled></dot-input>
     </dot-panel>
 
+    <dot-panel label="Selects" note="dot-select draws a native select in dots.">
+      <dot-select label="Clock"><select name="clock"><option value="12">12-hour</option><option value="24" selected>24-hour</option></select></dot-select>
+      <dot-select label="Favourite team" note="Its games come first.">
+        <select name="team"><option value="">Pick a team</option><option value="MTL">Montr&eacute;al Canadiens</option><option value="TOR">Toronto Maple Leafs</option></select>
+      </dot-select>
+      <dot-select label="Panel"><select disabled><option>64 x 32</option></select></dot-select>
+    </dot-panel>
+
     <dot-panel label="Status">
       <dot-grid row>
         <dot-status state="online"></dot-status>
@@ -129,7 +137,7 @@
         <dot-led tone="off">Idle</dot-led>
       </dot-grid>
       <dot-grid row>
-        <dot-badge>v0.4</dot-badge>
+        <dot-badge>v0.8</dot-badge>
         <dot-badge tone="ok">Ready</dot-badge>
         <dot-badge tone="warn">82%</dot-badge>
         <dot-badge tone="err">Fault</dot-badge>
@@ -160,7 +168,29 @@
       <dot-text muted>dot-rule draws a divider, solid or dotted.</dot-text>
       <dot-rule></dot-rule>
     </dot-panel>
+
+    <dot-panel label="Dialog" note="dot-dialog: a panel over the dimmed page. Esc, the close icon or a tap outside closes it.">
+      <dot-grid row>
+        <dot-button size="s" icon="info" id="dlg-short">Short</dot-button>
+        <dot-button size="s" icon="info" id="dlg-long">Long</dot-button>
+      </dot-grid>
+      <dot-text muted id="dlg-log">Open one; the long one scrolls inside its frame.</dot-text>
+    </dot-panel>
   </dot-grid>
+
+  <dot-dialog label="Brightness" id="dlg-1">
+    <dot-text>How bright the panel is. A dark room needs less.</dot-text>
+  </dot-dialog>
+  <dot-dialog label="Live mode" id="dlg-2">
+    <dot-text>On, the board follows the featured game from pregame to the final, and idles on days without one. Off, it shows the All day playlist whatever the games.</dot-text>
+    <dot-text muted>Either way, the splash covers start-up and a hub outage. This dialog has its own grid: every dot in it, lit or not, sits on the dialog's grid, whatever the page behind is doing.</dot-text>
+    <dot-text muted>On a short screen the text scrolls inside the frame. The title and the close icon stay put, and a chevron in the bottom edge shows there is more below.</dot-text>
+    <dot-text muted>Scroll by any amount: the text snaps back onto the grid, one whole dot at a time.</dot-text>
+    <dot-text muted>&Agrave; la fin : the accents stay inside the frame too.</dot-text>
+    <dot-grid row>
+      <dot-button variant="primary" id="dlg-ok">Got it</dot-button>
+    </dot-grid>
+  </dot-dialog>
 
   <dot-panel label="Marquee" note="dot-marquee moves its text through a window, one dot at a time. With pause-on-hover, a mouse over it holds it.">
     <dot-marquee id="marquee">Matrix 01 is <em>live</em>: brightness 72%, panel at 23.4&deg;C</dot-marquee>
@@ -185,7 +215,20 @@
       <dot-heading size="m">Embedded</dot-heading>
       <dot-text>Aligned to the grid of its own surface.</dot-text>
     </dot-matrix>
+    <p class="plain">A &lt;dot-tabbar&gt; outside the app is a plain row. Tabs with no label draw their icon at x2:</p>
+    <dot-tabbar>
+      <dot-tab icon="home" title="Home" current></dot-tab>
+      <dot-tab icon="matrix" title="Panel"></dot-tab>
+      <dot-tab icon="wifi" title="Network"></dot-tab>
+    </dot-tabbar>
   </dot-panel>
+
+  <dot-tabbar id="tabs">
+    <dot-tab icon="home" current>Home</dot-tab>
+    <dot-tab icon="matrix">Panel</dot-tab>
+    <dot-tab icon="wifi">Network</dot-tab>
+    <dot-tab icon="info" disabled>About</dot-tab>
+  </dot-tabbar>
 </dot-app>
 <script>
   const $ = id => document.getElementById(id);
@@ -240,11 +283,24 @@
   });
   $('form').addEventListener('reset', () => setTimeout(() => say('form-log', 'Reset to the starting values.')));
 
+  // Dialogs: open one, and say when it closes, however it closed.
+  $('dlg-short').addEventListener('click', () => $('dlg-1').show());
+  $('dlg-long').addEventListener('click', () => $('dlg-2').show());
+  $('dlg-ok').addEventListener('click', () => $('dlg-2').close());
+  for (const id of ['dlg-1', 'dlg-2']) $(id).addEventListener('close', () => say('dlg-log', `close: ${$(id).getAttribute('label')}`));
+
   // Marquee: the message, speed and pause come from the controls below it.
   const marquee = $('marquee');
   $('marquee-text').addEventListener('input', e => marquee.setAttribute('text', e.target.value));
   $('marquee-speed').addEventListener('input', e => { marquee.speed = e.target.value; });
   $('marquee-pause').addEventListener('change', e => { marquee.paused = e.target.checked; });
+
+  // Tab bar: these tabs are buttons, so a press moves `current` to it.
+  $('tabs').addEventListener('click', e => {
+    const t = e.target.closest('dot-tab');
+    if (!t || t.disabled) return;
+    for (const o of $('tabs').querySelectorAll('dot-tab')) o.current = o === t;
+  });
 
   // Values: a live reading.
   setInterval(() => $('temp').setAttribute('value', (22 + Math.random() * 3).toFixed(1)), 1000);
