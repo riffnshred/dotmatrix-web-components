@@ -44,7 +44,7 @@
 
     <dot-panel label="Text">
       <dot-text>Longer notes wrap at word boundaries. The quick brown fox jumps over the lazy dog; judge the body text at arm's length. Numbers line up: 0123456789.</dot-text>
-      <dot-text muted>Muted, for labels and notes.</dot-text>
+      <dot-text muted>Muted, for notes.</dot-text>
       <dot-text tone="warn">Fan at 82%, in the warn tone</dot-text>
       <dot-text size="l">Body text at x2</dot-text>
     </dot-panel>
@@ -87,12 +87,14 @@
         <dot-button size="s">Small</dot-button>
         <dot-button size="l" variant="primary">Large</dot-button>
         <dot-button disabled>Disabled</dot-button>
+        <dot-button size="s" variant="ghost" icon="up" title="Move up" disabled></dot-button>
       </dot-grid>
+      <dot-button block variant="primary" icon="refresh">Block: fills the width</dot-button>
       <dot-text muted id="btn-log">Press a button. Save shows the loading state.</dot-text>
     </dot-panel>
 
     <dot-panel label="Sliders">
-      <dot-slider label="Brightness" unit="%" value="72"></dot-slider>
+      <dot-slider label="Brightness" unit="%" value="72"><dot-button slot="label" size="s" variant="ghost" icon="info" title="About brightness"></dot-button></dot-slider>
       <dot-slider label="Scroll speed" min="0" max="10" step="0.5" value="4"></dot-slider>
       <dot-slider variant="level" label="Volume" value="60"></dot-slider>
       <dot-slider label="Disabled" value="30" disabled></dot-slider>
@@ -100,7 +102,7 @@
     </dot-panel>
 
     <dot-panel label="Toggles">
-      <dot-toggle label="Auto dim" checked></dot-toggle>
+      <dot-toggle label="Auto dim" checked><dot-button slot="label" size="s" variant="ghost" icon="info" title="About auto dim"></dot-button></dot-toggle>
       <dot-toggle label="Night mode"></dot-toggle>
       <dot-toggle label="Locked" checked disabled></dot-toggle>
       <dot-text muted id="toggle-log">Click a row, or focus it and press Space.</dot-text>
@@ -113,10 +115,11 @@
       </dot-input>
       <dot-input label="Data hub" tone="err" note="Cannot reach this address."><input name="hub" value="hub.local:8080"></dot-input>
       <dot-input label="Serial number"><input value="DM-0042" disabled></dot-input>
+      <dot-input label="Delay, in seconds" stepper><input type="number" inputmode="numeric" min="0" max="600" value="15"></dot-input>
     </dot-panel>
 
     <dot-panel label="Selects" note="dot-select draws a native select in dots.">
-      <dot-select label="Clock"><select name="clock"><option value="12">12-hour</option><option value="24" selected>24-hour</option></select></dot-select>
+      <dot-select label="Clock"><dot-badge slot="label" tone="warn">Unsaved</dot-badge><select name="clock"><option value="12">12-hour</option><option value="24" selected>24-hour</option></select></dot-select>
       <dot-select label="Favourite team" note="Its games come first.">
         <select name="team"><option value="">Pick a team</option><option value="MTL">Montr&eacute;al Canadiens</option><option value="TOR">Toronto Maple Leafs</option></select>
       </dot-select>
@@ -132,12 +135,14 @@
       </dot-grid>
       <dot-grid row>
         <dot-led tone="ok">Power</dot-led>
+        <dot-led tone="info">Sync</dot-led>
         <dot-led tone="warn" blink>Busy</dot-led>
         <dot-led tone="err" blink="fast">Fault</dot-led>
         <dot-led tone="off">Idle</dot-led>
       </dot-grid>
       <dot-grid row>
-        <dot-badge>v0.8</dot-badge>
+        <dot-badge>v0.10</dot-badge>
+        <dot-badge tone="info">Update</dot-badge>
         <dot-badge tone="ok">Ready</dot-badge>
         <dot-badge tone="warn">82%</dot-badge>
         <dot-badge tone="err">Fault</dot-badge>
