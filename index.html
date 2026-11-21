@@ -285,6 +285,7 @@
           collapsible | boolean | The title opens and closes the panel. Closed, the panel is just its title line.
           open        | boolean | A collapsible panel starts open.
           tone        | `accent`, `ok`, `warn`, `err` | Colour of the title.
+          --dot-panel-frame | `0` | CSS: no frame. The title sits on a rule at the content's edge, the content flush with it, like a section of a phone's settings. Set it in a media query to drop the frames on a phone only.
         </script>
         <p>JS: the <code>open</code> property, and a <code>toggle</code> event when a collapsible panel opens or closes.</p>
         <script type="text/plain" class="ex" data-title="Label and note">
@@ -300,6 +301,16 @@
           <dot-panel label="Advanced" collapsible>
             <dot-text>Hidden until the panel opens.</dot-text>
           </dot-panel>
+        </script>
+        <script type="text/plain" class="ex" data-title="No frame">
+          <div style="--dot-panel-frame:0;display:flex;flex-direction:column;gap:24px">
+            <dot-panel label="Display">
+              <dot-slider label="Brightness" unit="%" value="72"></dot-slider>
+            </dot-panel>
+            <dot-panel label="Advanced" collapsible>
+              <dot-text>Hidden until the panel opens.</dot-text>
+            </dot-panel>
+          </div>
         </script>
       </section>
 
@@ -501,7 +512,9 @@
           target, rel, download | text | As on a link, with `href`.
           disabled | boolean | Greyed out; ignores clicks. A disabled link goes nowhere.
           loading  | boolean | A busy animation; ignores clicks.
+          block    | boolean | Fills the width it is given, its label centred: say, the answers to a question, stacked on a phone.
         </script>
+        <p>Every button is 44 px tall to a finger, and a round one 44 px wide too, whatever its size draws. A disabled icon alone goes dim.</p>
         <p>JS: the <code>disabled</code> and <code>loading</code> properties; listen for <code>click</code>.</p>
         <script type="text/plain" class="ex" data-title="Variants">
           <dot-grid row>
@@ -527,6 +540,13 @@
             <dot-button href="#" icon="home" title="Home"></dot-button>
           </dot-grid>
         </script>
+        <script type="text/plain" class="ex" data-title="Block: answers stacked">
+          <div style="display:flex;flex-direction:column;gap:10px;max-width:360px">
+            <dot-button block variant="primary" icon="download">Save and restart</dot-button>
+            <dot-button block icon="trash">Discard and restart</dot-button>
+            <dot-button block variant="ghost">Cancel</dot-button>
+          </div>
+        </script>
       </section>
 
       <section id="slider">
@@ -542,10 +562,13 @@
           variant  | `level` | A rising bar graph instead of a rail.
           name     | text | The field name in a form.
           disabled | boolean | Greyed out; cannot be moved.
+          slot="label" | children | On the label's line, after its text: a help button, a badge.
         </script>
         <p>JS: the <code>value</code> property; an <code>input</code> event while it moves and <code>change</code> when it is let go.</p>
         <script type="text/plain" class="ex" data-title="Rail, steps, level, disabled">
-          <dot-slider label="Brightness" unit="%" value="72"></dot-slider>
+          <dot-slider label="Brightness" unit="%" value="72">
+            <dot-button slot="label" size="s" variant="ghost" icon="info" title="About brightness"></dot-button>
+          </dot-slider>
           <dot-slider label="Scroll speed" min="0" max="10" step="0.5" value="4"></dot-slider>
           <dot-slider label="Volume" variant="level" value="60"></dot-slider>
           <dot-slider label="Disabled" value="30" disabled></dot-slider>
@@ -561,10 +584,13 @@
           name     | text | The field name in a form.
           value    | text | Sent while on. Default `on`.
           disabled | boolean | Greyed out; cannot be switched.
+          slot="label" | children | On the label's line, after its text. A button there never flips the switch.
         </script>
         <p>JS: the <code>checked</code> property; <code>input</code> and <code>change</code> events on every switch.</p>
         <script type="text/plain" class="ex" data-title="On, off, disabled">
-          <dot-toggle label="Auto dim" checked></dot-toggle>
+          <dot-toggle label="Auto dim" checked>
+            <dot-button slot="label" size="s" variant="ghost" icon="info" title="About auto dim"></dot-button>
+          </dot-toggle>
           <dot-toggle label="Night mode"></dot-toggle>
           <dot-toggle label="Locked" checked disabled></dot-toggle>
         </script>
@@ -577,6 +603,8 @@
           label | text | Above the field. It also names the input for screen readers.
           note  | text | Below the field.
           tone  | `accent`, `ok`, `warn`, `err` | Colours the frame and note: `err` for a value that is wrong.
+          stepper | boolean | For a number: - and + at the field's end. They step the input by its `step`, `min` and `max` and fire its `input` and `change`, without taking focus, so a phone's keyboard stays down.
+          slot="label" | children | On the label's line, after its text: a help button, a badge.
         </script>
         <p>JS: setting <code>input.value</code> from a script does not repaint the dots. Set <code>dotInput.value</code> instead, or call <code>dotInput.render()</code>.</p>
         <script type="text/plain" class="ex" data-title="Text, password, error, disabled">
@@ -593,19 +621,26 @@
             <input value="DM-0042" disabled>
           </dot-input>
         </script>
+        <script type="text/plain" class="ex" data-title="Stepper">
+          <dot-input label="Delay, in seconds" stepper>
+            <input type="number" inputmode="numeric" name="delay" min="0" max="600" value="15">
+          </dot-input>
+        </script>
       </section>
 
       <section id="select">
         <dot-heading size="l">Select</dot-heading>
-        <p><code>&lt;dot-select&gt;</code> A drop-down drawn in dots around a native <code>&lt;select&gt;</code>. The select lies invisibly over the field and does the real work: a tap opens the platform's own picker (a wheel or a sheet on a phone), and forms and htmx post it like any select. So <code>name</code>, <code>required</code>, <code>disabled</code>, the options and <code>hx-*</code> go on the select. An option with an empty value draws dim, as a placeholder. One choice only: <code>multiple</code> and <code>size</code> are not drawn.</p>
+        <p><code>&lt;dot-select&gt;</code> A drop-down drawn in dots around a native <code>&lt;select&gt;</code>. The select lies invisibly over the field and does the real work: a tap opens the platform's own picker (a wheel or a sheet on a phone), and forms and htmx post it like any select. So <code>name</code>, <code>required</code>, <code>disabled</code>, the options and <code>hx-*</code> go on the select. An option with an empty value draws muted, as a placeholder. One choice only: <code>multiple</code> and <code>size</code> are not drawn.</p>
         <script type="text/plain" class="api">
           label | text | Above the field. It also names the select for screen readers.
           note  | text | Below the field.
           tone  | `accent`, `ok`, `warn`, `err` | Colours the frame and note.
+          slot="label" | children | On the label's line, after its text: a help button, a badge.
         </script>
         <p>JS: setting <code>select.value</code> from a script does not repaint the dots. Set <code>dotSelect.value</code> instead, or call <code>dotSelect.render()</code>. Changes to the options repaint by themselves.</p>
         <script type="text/plain" class="ex" data-title="Choice, placeholder, error, disabled">
           <dot-select label="Clock">
+            <dot-badge slot="label" tone="warn">Unsaved</dot-badge>
             <select name="clock">
               <option value="12">12-hour</option>
               <option value="24" selected>24-hour</option>

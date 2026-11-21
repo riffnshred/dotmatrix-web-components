@@ -1,11 +1,12 @@
 /*!
- * Dotmatrix v0.8.1 - dot-matrix web components for LED panel control pages.
+ * Dotmatrix v0.9.0 - dot-matrix web components for LED panel control pages.
  * The page is one grid of dots, like the HUB75 panels it controls.
  * Surfaces: <dot-matrix>, <dot-app>
  * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-marquee>
  * Controls: <dot-button>, <dot-slider>, <dot-toggle>, <dot-input>, <dot-select>
  * Status:   <dot-led>, <dot-badge>, <dot-status>
  * Layout:   <dot-bar>, <dot-tabbar>, <dot-tab>, <dot-panel>, <dot-dialog>, <dot-grid>, <dot-rule>
+ * Slider, toggle, input and select take slot="label" children (a help button, a badge) on their label line.
  * No dependencies. Drop in with <script src="dotmatrix.js"></script>
  */
 (() => {
@@ -110,12 +111,13 @@
     menu: '0,127,0,127,0,127,0', gear: '20,62,119,34,119,62,20', power: '8,42,73,73,65,34,28',
     wifi: '0,62,65,28,34,8,0', sun: '8,34,28,93,28,34,8', moon: '28,48,96,96,96,48,28',
     lock: '28,34,34,127,119,119,127', unlock: '28,34,32,127,119,119,127', warn: '8,20,20,42,34,73,127',
-    info: '8,0,24,8,8,8,28', refresh: '29,35,71,64,65,34,28', play: '32,48,56,60,56,48,32',
+    info: '62,65,73,65,73,73,62', refresh: '29,35,71,64,65,34,28', play: '32,48,56,60,56,48,32',
     pause: '54,54,54,54,54,54,54', stop: '0,62,62,62,62,62,0', bolt: '6,12,24,62,12,24,48',
     clock: '28,42,73,77,65,34,28', home: '8,20,34,127,34,42,42', matrix: '85,0,85,0,85,0,85',
     thermo: '8,20,20,20,42,42,28', bell: '8,28,34,34,34,127,8', trash: '28,127,42,42,42,42,28',
     download: '8,8,42,28,8,0,127', upload: '127,0,8,28,42,8,8', eye: '0,28,34,73,34,28,0',
-    edit: '2,7,14,28,56,96,64'
+    edit: '2,7,14,28,56,96,64', server: '127,69,127,0,127,69,127',
+    logout: '96,68,66,95,66,68,96'
   };
 
   const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -777,6 +779,30 @@
     canvas{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none}
     .sr{${SR}}
   `;
+  // The label line of <dot-slider>, <dot-toggle>, <dot-input> and <dot-select>: light-DOM children
+  // with slot="label" (a help button, a badge) sit on it just after the label's text, each centred
+  // on the line, so an odd-height one (any button, badge or icon) lands on the label's own rows.
+  // They are components too, each snapped to the grid by the layout pass, so the slot sits half a
+  // dot short of their place and each snaps forward onto it. The centring is !important, as page
+  // CSS beats ::slotted: a page's `form dot-button{align-self:flex-start}` put them a line low.
+  const LABEL_SLOT = '<div class="lab" part="label"><slot name="label"></slot></div>';
+  const LABEL_CSS = `.lab{position:absolute;left:var(--_ax,0px);top:var(--_ay,0px);height:0;z-index:3;
+    display:flex;align-items:center;gap:calc(var(--dot-pitch,2px) * 4)}
+    slot[name=label]::slotted(*){align-self:center!important;margin-block:0!important}`;
+  /** Put el's label slot after its label's columns, on the line whose top row is `row`. */
+  function placeLabel(el, row) {
+    el._labRow = row;
+    const P = G.pcss, s = el.$('.lab').style, n = el._labC.length;
+    s.setProperty('--_ax', (el._lx || 0) + (n + (n ? px(4) : 0) - 0.5) * P + 'px');
+    s.setProperty('--_ay', (el._ly || 0) + (row + 3) * P + 'px');
+  }
+  /** The canvas moved, so the label slot moves with it. The layout pass read every box before
+   *  this move, so the slot's contents take one more pass to follow. */
+  function movedLabel(el) {
+    if (el._labRow == null) return;
+    placeLabel(el, el._labRow);
+    if (el.$('slot[name=label]').assignedElements().length) schedule();
+  }
   class DotElement extends HTMLElement {
     constructor() {
       super();
@@ -1051,12 +1077,17 @@
     static delegatesFocus = true;
     static formAssociated = true;
     static observedAttributes = ['label', 'icon', 'title', 'variant', 'size', 'disabled', 'loading',
-      'href', 'target', 'rel', 'download'];
+      'href', 'target', 'rel', 'download', 'block'];
     static css = `
       :host{display:inline-block;vertical-align:middle}
+      :host([block]){display:block}
+      /* A <button> doesn't stretch like a block, even as one. */
+      :host([block]) button,:host([block]) a{width:100%}
       button,a{all:unset;display:block;position:relative;cursor:pointer;border-radius:999px;
         touch-action:manipulation;-webkit-tap-highlight-color:transparent}
       button::before,a::before{${HIT}}
+      /* A round (icon-only) button is 44 px wide to a finger too, not just 44 px tall. */
+      button.round::before,a.round::before{left:calc(50% - 22px);right:calc(50% - 22px)}
       button:focus-visible,a:focus-visible{${FOCUS}}
       button:disabled,a:not([href]){cursor:default}
       :host([loading]) button,:host([loading]) a{cursor:progress}
@@ -1121,13 +1152,22 @@
       } else b.disabled = this.disabled;
       b.setAttribute('aria-busy', String(this.loading));
       animate(this, this.loading && !this.disabled);
+      // `block` fills the width it is given, so it stops sizing itself. A tab never does.
+      const block = this.hasAttribute('block');
+      if (block !== !!this._block) {
+        this._block = block;
+        this._inline = !block;
+        if (block) this._box.style.width = '';
+      }
+      b.classList.toggle('round', this._inline && !!this.getAttribute('icon') && !text);
     }
     _frame(now) { return Math.floor(now / 200) % 3; }
-    _measure() {
+    _measure(wd) {
       // Odd heights centre the 7-row text; descenders still clear the edge.
       const H = this._H = odd(Math.max(13, px(BUTTON_H[this.getAttribute('size')] || 40)));
       const icon = this.getAttribute('icon'), cols = this._cols = layout(this._chars, 'body'), n = cols.length;
       this._cw = (icon ? 7 : 0) + (icon && n ? 4 : 0) + n;
+      if (this._block) return { w: wd, h: H };
       if (icon && !n) return { w: H, h: H };
       return { w: Math.max(this._cw, 11) + 2 * Math.max(5, Math.round(H * 0.45)), h: H };
     }
@@ -1138,7 +1178,7 @@
       let edge = v === 'ghost' ? 0 : prim ? ACCENT : FG, fill = prim ? ACCENT_DIM : 0, ink = FG;
       if (hover) fill = prim ? ACCENT_MID : DIM;
       if (down) { fill = prim ? ACCENT : FG; ink = BLANK; }
-      if (dis) { edge = edge && DIM; fill = 0; ink = MUTED; }
+      if (dis) { edge = edge && DIM; fill = 0; ink = this._cols.length ? MUTED : DIM; }   // an icon alone goes dim, so it reads as off
       if (fill) p.fillRound(0, 0, w, h, r, fill);
       if (edge) p.strokeRound(0, 0, w, h, r, edge);
       const y = (h - 7) >> 1;
@@ -1170,9 +1210,10 @@
         touch-action:pan-y;-webkit-tap-highlight-color:transparent}
       .track:focus-visible{${FOCUS}}
       :host([disabled]) .track{cursor:default}
+      ${LABEL_CSS}
     `;
     static tpl = '<div class="box" part="dots"><canvas aria-hidden="true"></canvas>' +
-      '<div class="track" part="track" role="slider" tabindex="0" aria-orientation="horizontal"></div></div>';
+      `<div class="track" part="track" role="slider" tabindex="0" aria-orientation="horizontal"></div>${LABEL_SLOT}</div>`;
     constructor() {
       super();
       this._int = this.attachInternals ? this.attachInternals() : null;
@@ -1280,12 +1321,14 @@
       const P = G.pcss, c = cy * P, t0 = Math.max(9 * P, c - 22);
       this._track.style.top = t0 + 'px';
       this._track.style.height = (c + 22 - t0) + 'px';
+      placeLabel(this, 0);
       return { w: wd, h };
     }
+    _moved() { movedLabel(this); }
     _draw(p) {
       const w = this._sz.w, dis = this.disabled, { min, max } = this;
       const f = max > min ? (this.value - min) / (max - min) : 0, y = this._top;
-      p.text(this._labC, 0, 0, 1, dis ? DIM : MUTED);
+      p.text(this._labC, 0, 0, 1, dis ? MUTED : FG);
       p.text(this._valC, w - this._valC.length, 0, 1, dis ? MUTED : FG);
       if (!this._thW) {
         // Level: one column every other dot, rising left to right; the last lit one is white.
@@ -1319,8 +1362,10 @@
       button::before{${HIT}}
       button:focus-visible{${FOCUS}}
       button:disabled{cursor:default}
+      ${LABEL_CSS}
     `;
-    static tpl = `<button part="switch" type="button" role="switch">${BOX}</button>`;
+    // The label slot is outside the switch, so a button in it never flips the switch.
+    static tpl = `<button part="switch" type="button" role="switch">${BOX}</button>${LABEL_SLOT}`;
     constructor() {
       super();
       this._int = this.attachInternals ? this.attachInternals() : null;
@@ -1360,12 +1405,14 @@
     _measure(wd) {
       const th = this._th = Math.max(7, odd(px(22)));
       this._tw = Math.max(13, px(40));
+      placeLabel(this, (th - 7) >> 1);
       return { w: wd, h: Math.max(th, ((th - 7) >> 1) + 9) };   // room for label descenders
     }
+    _moved() { movedLabel(this); }
     _draw(p) {
       const w = this._sz.w, th = this._th, tw = this._tw, on = this.checked, dis = this.disabled;
       const ly = (th - 7) >> 1, sx = w - tw, kd = th - 4;
-      p.text(this._labC, 0, ly, 1, dis ? DIM : MUTED);
+      p.text(this._labC, 0, ly, 1, dis ? MUTED : FG);
       p.strokeRound(sx, 0, tw, th, th >> 1, on && !dis ? ACCENT : DIM);
       p.fillRound(on ? sx + tw - 2 - kd : sx + 2, 2, kd, kd, kd >> 1, dis ? (on ? ACCENT_DIM : DIM) : on ? ACCENT : MUTED);
       p.text(this._word, sx - px(10) - this._word.length, ly, 1, dis ? DIM : on ? FG : MUTED);
@@ -1381,7 +1428,8 @@
    * text is monospaced, one 6-dot cell per character, and the hidden
    * input's letter-spacing makes its characters the same width, so a
    * click puts the caret on the same character in both. `note` adds a
-   * line below; a tone colours the frame and note.
+   * line below; a tone colours the frame and note. `stepper` adds - and
+   * + at the field's end, which step the input as its arrow keys do.
    * ================================================================== */
   const MONO = 'ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace';
   const INPUT_EVENTS = ['input', 'change', 'focus', 'blur', 'select', 'keydown', 'keyup',
@@ -1411,14 +1459,15 @@
   }
 
   class DotInput extends DotElement {
-    static observedAttributes = ['label', 'note', 'tone', 'accent'];
+    static observedAttributes = ['label', 'note', 'tone', 'accent', 'stepper'];
     static css = `
       canvas{z-index:1}
       .box{--_x:0px;--_y:0px;--_w:100%;--_h:44px;--_pl:0px;--_pr:0px;--_ls:0px}
       /* Measures the input font's character width; clipped so it never widens the page. */
       .mw{position:absolute;left:0;top:0;width:0;height:0;overflow:hidden;visibility:hidden}
       .m{white-space:pre;font:16px/1 ${MONO};letter-spacing:0}
-      ::slotted(:not(input)){display:none!important}
+      ${LABEL_CSS}
+      slot:not([name])::slotted(:not(input)){display:none!important}
       ::slotted(input){position:absolute!important;z-index:0!important;display:block!important;box-sizing:border-box!important;
         left:var(--_x)!important;top:var(--_y)!important;width:var(--_w)!important;height:var(--_h)!important;
         min-width:0!important;max-width:none!important;min-height:0!important;max-height:none!important;
@@ -1430,8 +1479,17 @@
         letter-spacing:var(--_ls)!important;word-spacing:0!important;cursor:text;
         transition:background-color 600000s 0s,color 600000s 0s!important}
       ::slotted(input:disabled){cursor:default}
+      .step{all:unset;position:absolute;display:none;z-index:2;top:var(--_y);height:var(--_h);width:var(--_sw);
+        cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+      :host([stepper]) .step{display:block}
+      .step.dn{left:var(--_dx)} .step.up{left:var(--_ux)}
+      .step:disabled{cursor:default}
     `;
-    static tpl = '<div class="box" part="dots"><canvas aria-hidden="true"></canvas><slot></slot></div>' +
+    // The stepper's buttons are left out of the tab order and hidden from readers: the input
+    // itself steps with its arrow keys.
+    static tpl = '<div class="box" part="dots"><canvas aria-hidden="true"></canvas><slot></slot>' +
+      '<button class="step dn" part="minus" type="button" tabindex="-1" aria-hidden="true"></button>' +
+      `<button class="step up" part="plus" type="button" tabindex="-1" aria-hidden="true"></button>${LABEL_SLOT}</div>` +
       `<div class="mw" aria-hidden="true"><span class="m">${'0'.repeat(50)}</span></div>`;
     constructor() {
       super();
@@ -1444,14 +1502,36 @@
       this._onEv = e => { if (e.type !== 'pointermove' || e.buttons) this._poke(); };
       this._onReset = () => setTimeout(this._poke);
       this._lmo = new MutationObserver(() => this.invalidate());
-      // The label and note are dots in the shadow root; a click there focuses the input.
-      this.addEventListener('click', e => { if (e.target === this && this._in) this._in.focus(); });
+      // The label and note are dots in the shadow root; a click there focuses the input. A click on
+      // - or + doesn't: it would bring up the keyboard.
+      this.addEventListener('click', e => {
+        if (e.target === this && this._in && !e.composedPath()[0].classList?.contains('step')) this._in.focus();
+      });
       this.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') { this._hover = true; this._poke(); } });
       this.addEventListener('pointerleave', () => { if (this._hover) { this._hover = false; this._poke(); } });
+      // A press on - or + never takes focus, so it neither brings up the keyboard nor puts it away.
+      this._press = 0;
+      for (const [sel, d] of [['.dn', -1], ['.up', 1]]) {
+        const b = this.$(sel), up = () => { if (this._press) { this._press = 0; this._poke(); } };
+        b.addEventListener('pointerdown', e => { e.preventDefault(); if (!b.disabled) { this._press = d; this._poke(); } });
+        for (const t of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(t, up);
+        b.addEventListener('click', () => this._step(d));
+      }
     }
     get value() { return this._in ? this._in.value : ''; }
     set value(v) { if (this._in) { this._in.value = v; this._poke(); } }
     focus(o) { if (this._in) this._in.focus(o); }
+    /** Step the input by its own step, min and max, and fire its input and change events, so a
+     *  form or htmx sees the change as it sees one typed. */
+    _step(d) {
+      const inp = this._in;
+      if (!inp || inp.disabled || inp.readOnly) return;
+      const before = inp.value;
+      try { if (d > 0) inp.stepUp(); else inp.stepDown(); } catch (e) { return; }   // step="any", or not a number
+      if (inp.value === before) return;
+      fire(inp, 'input');
+      fire(inp, 'change');
+    }
     connectedCallback() {
       readyInputs();
       this._lmo.observe(this, { childList: true, subtree: true, attributes: true,
@@ -1489,8 +1569,11 @@
       const H = this._fh = odd(Math.max(13, px(44)));
       const pad = this._pad = Math.max(3, px(12));
       const fy = this._fy = this._labC.length ? 9 + px(6) : 0;
-      const cells = this._cells = Math.max(1, Math.floor((wd - 2 * pad + 1) / 6));
-      const st = this._st = { v: '', pw: false, dis: false, ro: false, on: false, s: 0, e: 0, c: 0, ph: '', auto: false };
+      // The stepper's - and + are square, at the field's end; the text has the rest.
+      const sw = this._sw = this.hasAttribute('stepper') ? H : 0, iw = this._iw = Math.max(1, wd - 2 * sw);
+      const cells = this._cells = Math.max(1, Math.floor((iw - 2 * pad + 1) / 6));
+      const st = this._st = { v: '', pw: false, dis: false, ro: false, on: false, s: 0, e: 0, c: 0, ph: '', auto: false,
+        dnOff: false, upOff: false };
       if (inp) {
         Object.assign(st, { v: inp.value, pw: inp.type === 'password', dis: inp.matches(':disabled'), ro: inp.readOnly,
           on: document.activeElement === inp, ph: inp.placeholder || '' });
@@ -1502,6 +1585,14 @@
         try { s = inp.selectionStart; e = inp.selectionEnd; back = inp.selectionDirection === 'backward'; } catch (x) { s = null; }
         if (s == null) s = e = st.v.length;
         Object.assign(st, { s, e, c: back ? s : e });
+        if (sw) {
+          // At a limit, its button goes dim and stops answering.
+          const v = parseFloat(st.v), lo = parseFloat(inp.min), hi = parseFloat(inp.max), off = st.dis || st.ro;
+          st.dnOff = off || (v <= lo);
+          st.upOff = off || (v >= hi);
+          this.$('.dn').disabled = st.dnOff;
+          this.$('.up').disabled = st.upOff;
+        }
       }
       // Scroll in whole characters, just far enough to keep the caret in view.
       let sc = st.on ? Math.min(this._scroll, Math.max(0, st.v.length - cells)) : 0;
@@ -1514,6 +1605,7 @@
         ? wrapLines(this._noteChars, wd, 'body', 1).map(l => layout(l, 'body')) : [];
       this._ny = fy + H + px(6);
       this._place(wd);
+      placeLabel(this, 0);
       return { w: wd, h: this._note.length ? this._ny + this._note.length * 12 - 3 : fy + H };
     }
     _frame(now) { return Math.floor((now - this._t0) / 500) % 2; }
@@ -1523,28 +1615,43 @@
       if (!inp) return;
       if (!monoAdv) { const r = this.$('.m').getBoundingClientRect().width / 50; if (r > 0) monoAdv = r; }
       const P = G.pcss, cell = 6 * P, b = this._box.style, set = (k, v) => b.setProperty(k, v + 'px');
-      set('--_x', this._lx || 0);
+      const iw = this._iw || wd, x = this._lx || 0;
+      set('--_x', x);
       set('--_y', (this._ly || 0) + this._fy * P);
-      set('--_w', wd * P);
+      set('--_w', iw * P);
       set('--_h', this._fh * P);
+      set('--_sw', this._sw * P);
+      set('--_dx', x + iw * P);
+      set('--_ux', x + (iw + this._sw) * P);
       // Character i's centre lands on the centre of dot cell i, and the visible text area is
       // exactly the drawn cells wide, so the input scrolls as far as the dots do.
       set('--_pl', (this._pad - 0.5) * P);
-      set('--_pr', (wd - this._pad + 0.5 - this._cells * 6) * P);
+      set('--_pr', (iw - this._pad + 0.5 - this._cells * 6) * P);
       set('--_ls', cell - (monoAdv || 9.6));
       inp.scrollLeft = this._st && this._st.on ? this._scroll * cell : 0;
     }
-    _moved() { this._place(); }
+    _moved() { this._place(); movedLabel(this); }
     _draw(p) {
       const st = this._st, w = this._sz.w, H = this._fh, fy = this._fy, pad = this._pad, sc = this._scroll;
       const toned = this.hasAttribute('tone') || this.hasAttribute('accent');
-      p.text(this._labC, 0, 0, 1, st.dis ? DIM : MUTED);
-      p.strokeRound(0, fy, w, H, 2, st.dis ? DIM : toned ? TONE : st.on ? ACCENT : this._hover ? FG : MUTED);
+      p.text(this._labC, 0, 0, 1, st.dis ? MUTED : FG);
+      const edge = st.dis ? DIM : toned ? TONE : st.on ? ACCENT : this._hover ? FG : MUTED;
+      p.strokeRound(0, fy, w, H, 2, edge);
       const ty = fy + ((H - 7) >> 1), ink = st.dis ? MUTED : FG;
+      if (this._sw) {
+        // - and +, each behind a divider; the last one's right side is the frame.
+        const sw = this._sw;
+        for (const [d, x, off] of [[-1, this._iw, st.dnOff], [1, this._iw + sw, st.upOff]]) {
+          const inner = d < 0 ? sw - 1 : sw - 2;
+          p.rect(x, fy, 1, H, edge);
+          if (this._press === d && !off) p.rect(x + 1, fy + 1, inner, H - 2, DIM);
+          p.icon(d < 0 ? 'minus' : 'plus', x + 1 + ((inner - 7) >> 1), ty, off ? DIM : FG);
+        }
+      }
       if (!st.v.length) {
         // Chrome may not reveal an autofilled value yet; say the field is filled rather than look empty.
         const hint = st.auto ? colsOf('Filled by the browser') : colsOf(st.ph);
-        p.text(hint.slice(0, this._cells * 6 - 1), pad, ty, 1, DIM);
+        p.text(hint.slice(0, this._cells * 6 - 1), pad, ty, 1, MUTED);
       }
       const lo = Math.min(st.s, st.e), hi = Math.max(st.s, st.e), end = Math.min(st.v.length, sc + this._cells);
       for (let i = sc; i < end; i++) {
@@ -1566,7 +1673,7 @@
    * page, laid invisibly over the field, so a tap opens the platform's
    * own picker (a wheel or sheet on a phone), and forms and htmx post it
    * like any select. The dots draw the label, frame, the chosen option
-   * and a chevron. An option with an empty value draws dim, as a
+   * and a chevron. An option with an empty value draws muted, as a
    * placeholder. One choice only: `multiple` and `size` are not drawn.
    * ================================================================== */
   const SELECT_EVENTS = ['input', 'change', 'focus', 'blur'];
@@ -1575,7 +1682,8 @@
     static css = `
       canvas{z-index:1;pointer-events:none}
       .box{--_x:0px;--_y:0px;--_w:100%;--_h:44px}
-      ::slotted(:not(select)){display:none!important}
+      ${LABEL_CSS}
+      slot:not([name])::slotted(:not(select)){display:none!important}
       ::slotted(select){position:absolute!important;z-index:2!important;display:block!important;box-sizing:border-box!important;
         left:var(--_x)!important;top:var(--_y)!important;width:var(--_w)!important;height:var(--_h)!important;
         min-width:0!important;max-width:none!important;min-height:0!important;max-height:none!important;
@@ -1584,7 +1692,7 @@
         -webkit-tap-highlight-color:transparent}
       ::slotted(select:disabled){cursor:default}
     `;
-    static tpl = '<div class="box" part="dots"><canvas aria-hidden="true"></canvas><slot></slot></div>';
+    static tpl = `<div class="box" part="dots"><canvas aria-hidden="true"></canvas><slot></slot>${LABEL_SLOT}</div>`;
     constructor() {
       super();
       this._sel = null;
@@ -1643,6 +1751,7 @@
         ? wrapLines(this._noteChars, wd, 'body', 1).map(l => layout(l, 'body')) : [];
       this._ny = fy + H + px(6);
       this._place(wd);
+      placeLabel(this, 0);
       return { w: wd, h: this._note.length ? this._ny + this._note.length * 12 - 3 : fy + H };
     }
     /** Lay the invisible select over the drawn field, so a tap anywhere on it opens the picker. */
@@ -1654,11 +1763,11 @@
       set('--_w', wd * P);
       set('--_h', this._fh * P);
     }
-    _moved() { this._place(); }
+    _moved() { this._place(); movedLabel(this); }
     _draw(p) {
       const st = this._st, w = this._sz.w, H = this._fh, fy = this._fy, pad = this._pad;
       const toned = this.hasAttribute('tone') || this.hasAttribute('accent');
-      p.text(this._labC, 0, 0, 1, st.dis ? DIM : MUTED);
+      p.text(this._labC, 0, 0, 1, st.dis ? MUTED : FG);
       p.strokeRound(0, fy, w, H, 2, st.dis ? DIM : toned ? TONE : st.on ? ACCENT : this._hover ? FG : MUTED);
       const ty = fy + ((H - 7) >> 1), cx = w - pad - 7;
       p.icon('chevron', cx, ty, st.dis ? DIM : st.on ? ACCENT : FG);
@@ -1673,7 +1782,7 @@
         if (cols.length > room) cols = dots;
       }
       p.clip(pad, -REACH, Math.max(0, room), H + fy + 2 * REACH);
-      p.text(cols, pad, ty, 1, st.dis ? MUTED : st.ph ? DIM : FG);
+      p.text(cols, pad, ty, 1, st.dis || st.ph ? MUTED : FG);
       p.clip();
       this._note.forEach((cols, i) => p.text(cols, 0, this._ny + i * 12, 1, toned ? TONE : MUTED));
     }
@@ -1813,7 +1922,8 @@
     summary.head::before{${HIT}}
     summary.head:focus-visible{${FOCUS}}
     .body{display:flex;flex-direction:column;gap:calc(var(--dot-pitch,2px) * 10);min-width:0;
-      padding:calc(var(--dot-pitch,2px) * 6) calc(var(--dot-pitch,2px) * 8) calc(var(--dot-pitch,2px) * 8)}
+      padding:calc(var(--dot-pitch,2px) * 6) calc(var(--dot-pitch,2px) * 8 * var(--dot-panel-frame,1))
+        calc(var(--dot-pitch,2px) * 8 * var(--dot-panel-frame,1))}
   `;
   class DotPanel extends DotElement {
     static observedAttributes = ['label', 'note', 'level', 'collapsible', 'open', 'tone', 'accent'];
@@ -1862,19 +1972,33 @@
       this._title = colsOf(label, 'head');
     }
     _measure(wd) {
+      // --dot-panel-frame: 0 drops the frame: the title on a rule, the content flush with it.
+      // A page sets it in a media query, so it is read on every pass and a change repaints.
+      const flat = getComputedStyle(this).getPropertyValue('--dot-panel-frame').trim() === '0';
+      if (flat !== this._flat) { this._flat = flat; this._dirty = true; }
       const H = this.$('.frame').getBoundingClientRect().height * G.dpr;
       return { w: wd, h: Math.max(7, Math.floor(H / G.pdp + 1e-3)) };
     }
     _draw(p) {
-      const { w, h } = this._sz, t = this._title, tx = 8;
+      const { w, h } = this._sz, t = this._title;
+      if (this._flat) {
+        // The title at the content's edge, then a rule to the chevron or the end.
+        const x0 = t.length ? t.length + 4 : 0, x1 = this._coll ? w - 10 : w;
+        if (t.length) p.text(t, 0, 0, 1, TONE);
+        if (x1 > x0) p.rect(x0, 3, x1 - x0, 1, DIM);
+        if (this._coll) p.icon('chevron', w - 7, 0, FG, 1, this.open);
+        return;
+      }
+      const tx = 8;
       // The frame's top edge runs through the middle of the 7-row title line.
       if ((!this._coll || this.open) && h > 7) p.strokeRound(0, 3, w, h - 3, 2, DIM);
       else p.rect(0, 3, w, 1, DIM);
       if (t.length) { p.rect(tx - 2, 3, t.length + 4, 1, 0); p.text(t, tx, 0, 1, TONE); }
       if (this._coll) {
+        // Bright, so a closed section reads as one to open, not as a rule.
         const cx = w - 15;
         p.rect(cx - 2, 3, 11, 1, 0);
-        p.icon('chevron', cx, 0, MUTED, 1, this.open);
+        p.icon('chevron', cx, 0, FG, 1, this.open);
       }
     }
   }
@@ -2157,7 +2281,7 @@
   }
 
   window.Dotmatrix = {
-    version: '0.8.1',
+    version: '0.9.0',
     theme,
     glyph,
     layout,
