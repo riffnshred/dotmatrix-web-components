@@ -1,5 +1,5 @@
 /*!
- * Dotmatrix v0.9.0 - dot-matrix web components for LED panel control pages.
+ * Dotmatrix v0.10.0 - dot-matrix web components for LED panel control pages.
  * The page is one grid of dots, like the HUB75 panels it controls.
  * Surfaces: <dot-matrix>, <dot-app>
  * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-marquee>
@@ -7,6 +7,7 @@
  * Status:   <dot-led>, <dot-badge>, <dot-status>
  * Layout:   <dot-bar>, <dot-tabbar>, <dot-tab>, <dot-panel>, <dot-dialog>, <dot-grid>, <dot-rule>
  * Slider, toggle, input and select take slot="label" children (a help button, a badge) on their label line.
+ * Colours: a palette of roles (--dot-title, --dot-label, --dot-value, --dot-edge, --dot-rule, ...) and five tones.
  * No dependencies. Drop in with <script src="dotmatrix.js"></script>
  */
 (() => {
@@ -380,17 +381,27 @@
   const hex = c => '#' + c.map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
   const mix = (a, b, t) => a.map((v, i) => v * t + b[i] * (1 - t));
 
-  // Colour roles a component paints with: an index into its palette.
+  // Colour roles a component paints with: an index into its palette. Each role past ACCENT_MID
+  // is a --dot-* property; with none set, paletteOf mixes it from the text and background colours.
   const FG = 1, MUTED = 2, DIM = 3, ACCENT = 4, ACCENT_DIM = 5, OK = 6, WARN = 7, ERR = 8, BLANK = 9, TONE = 10,
-    TONE_DIM = 11, ACCENT_MID = 12;
-  /** Palette from the element's --dot-* properties. TONE is its tone colour, or the text colour. */
+    TONE_DIM = 11, ACCENT_MID = 12, HEADING = 13, TITLE = 14, LABEL = 15, VALUE = 16, EDGE = 17, RULE = 18,
+    SHADE = 19;
+  /** Palette from the element's --dot-* properties. TONE is its tone colour, or untoned its own role's colour. */
   function paletteOf(el) {
     const cs = getComputedStyle(el), v = n => cs.getPropertyValue(n).trim();
-    const bg = rgb(v('--dot-bg'), '#000000'), fg = rgb(v('--dot-fg'), '#F2F2EE'), ac = rgb(v('--dot-accent'), '#FF2E2E');
-    const t = v('--_t'), tone = t ? rgb(t, '#F2F2EE') : fg;
-    return [null, fg, mix(fg, bg, 0.62), mix(fg, bg, 0.3), ac, mix(ac, bg, 0.3),
-      rgb(v('--dot-ok'), '#2BE36F'), rgb(v('--dot-warn'), '#FFB01F'), rgb(v('--dot-err'), '#FF2E2E'),
-      bg, tone, mix(tone, bg, 0.3), mix(ac, bg, 0.55)].map(c => c && hex(c));
+    const bg = rgb(v('--dot-bg'), '#000000'), fg = rgb(v('--dot-fg'), '#F2F2EE'), ac = rgb(v('--dot-accent'), '#FFA51F');
+    const opt = (n, d) => { const s = v(n); return s ? rgb(s, '#000000') : d; };
+    const muted = opt('--dot-muted', mix(fg, bg, 0.62)), dim = opt('--dot-dim', mix(fg, bg, 0.3));
+    const pal = [null, fg, muted, dim, ac, mix(ac, bg, 0.3),
+      rgb(v('--dot-ok'), '#2BE36F'), rgb(v('--dot-warn'), '#FFE14D'), rgb(v('--dot-err'), '#FF4646'),
+      bg, null, null, mix(ac, bg, 0.55),
+      opt('--dot-heading', fg), opt('--dot-title', fg), opt('--dot-label', fg), opt('--dot-value', fg),
+      opt('--dot-edge', muted), opt('--dot-rule', dim), opt('--dot-shade', dim)];
+    // Untoned, TONE is the component's own role (a panel's title colour, a heading's).
+    const t = v('--_t'), tone = t ? rgb(t, '#F2F2EE') : pal[el.constructor.untoned || FG];
+    pal[TONE] = tone;
+    pal[TONE_DIM] = mix(tone, bg, 0.3);
+    return pal.map(c => c && hex(c));
   }
 
   function dotShape(g, x, y) {
@@ -659,7 +670,7 @@
   const odd = n => (n % 2 ? n : n + 1);
   /** A string's columns in font 'body' (default) or 'head'. */
   const colsOf = (s, font = 'body') => layout(textChars(s || ''), font);
-  const FOCUS = 'outline:2px solid var(--dot-accent,#FF2E2E);outline-offset:3px';
+  const FOCUS = 'outline:2px solid var(--dot-accent,#FFA51F);outline-offset:3px';
   // Grows a control's hit area to 44 CSS px tall without moving its dots.
   const HIT = 'content:"";position:absolute;left:0;right:0;top:calc(50% - 22px);bottom:calc(50% - 22px)';
 
@@ -667,10 +678,15 @@
    * The house theme: dark only. <dot-app> applies it, or call
    * Dotmatrix.theme(). It sits in @layer dotmatrix, so any unlayered page
    * style overrides it. Every --dot-* property also has a fallback in code.
+   * Warm greys in steps, so labels, values, notes, frames and rules each
+   * read apart; amber section titles and accent, the amber of a departure
+   * board. Red is only for errors, and warnings are yellow.
    * ------------------------------------------------------------------ */
   const THEME_CSS = `@layer dotmatrix{
-    :root{color-scheme:dark;--dot-bg:#000000;--dot-fg:#ffffff;--dot-accent:#FF2E2E;
-      --dot-ok:#2BE36F;--dot-warn:#FFB01F;--dot-err:#FF2E2E}
+    :root{color-scheme:dark;--dot-bg:#000000;--dot-fg:#F4EFE8;--dot-heading:#FFFFFF;--dot-title:#FFA51F;
+      --dot-label:#CFC6BB;--dot-value:#FFFFFF;--dot-muted:#968C80;--dot-edge:#71675D;--dot-rule:#463F38;
+      --dot-shade:#3A332C;--dot-dim:#4A433B;--dot-accent:#FFA51F;--dot-info:#4FC3F7;
+      --dot-ok:#2BE36F;--dot-warn:#FFE14D;--dot-err:#FF4646}
     html,body{background:var(--dot-bg)}
     body{margin:0}
   }`;
@@ -702,8 +718,8 @@
 
   /** Status tones. A component's tone attribute sets --_t; --_t:initial stops it leaking into nested components. */
   const TONES = {
-    accent: 'var(--dot-accent,#FF2E2E)', ok: 'var(--dot-ok,#2BE36F)',
-    warn: 'var(--dot-warn,#FFB01F)', err: 'var(--dot-err,#FF2E2E)'
+    accent: 'var(--dot-accent,#FFA51F)', info: 'var(--dot-info,#4FC3F7)', ok: 'var(--dot-ok,#2BE36F)',
+    warn: 'var(--dot-warn,#FFE14D)', err: 'var(--dot-err,#FF4646)'
   };
   const HOST_TONES = ':host{--_t:initial}' +
     Object.keys(TONES).map(k => `:host([tone=${k}]){--_t:${TONES[k]}}`).join('') +
@@ -855,6 +871,7 @@
    * ================================================================== */
   const HEAD_SCALE = { s: 1, m: 2, l: 3, xl: 4 };
   class DotHeading extends DotTextual {
+    static untoned = HEADING;
     static observedAttributes = ['text', 'level', 'size', 'tone', 'accent'];
     static tpl = `<div class="h" role="heading" aria-level="2" part="heading"><span class="sr"></span>${BOX}</div>`;
     _sync() {
@@ -879,7 +896,7 @@
 
   /* ==================================================================
    * <dot-text>: the mixed-case body font, wrapped to the width it has.
-   * `muted` dims it for labels and notes; size="l" draws it at x2.
+   * `muted` draws it in the notes colour; size="l" draws it at x2.
    * ================================================================== */
   class DotText extends DotTextual {
     static observedAttributes = ['text', 'size', 'tone', 'accent', 'muted'];
@@ -904,6 +921,7 @@
    * light DOM.
    * ================================================================== */
   class DotValue extends DotTextual {
+    static untoned = VALUE;
     static textAttr = 'value';
     static observedAttributes = ['value', 'unit', 'label', 'note', 'size', 'tone', 'accent'];
     static tpl = `<div part="value"><span class="sr"></span>${BOX}</div>`;
@@ -936,7 +954,7 @@
     }
     _draw(p) {
       const k = this._k, ku = this._ku, y = this._vy;
-      p.text(this._labC, 0, 0, 1, MUTED);
+      p.text(this._labC, 0, 0, 1, LABEL);
       p.text(this._vc, 0, y, k, TONE);
       p.text(this._unitC, this._vc.length * k + k, y + 7 * k - 7 * ku, ku, MUTED);
       this._note.forEach((cols, i) => p.text(cols, 0, this._ny + i * 12, 1, MUTED));
@@ -1025,7 +1043,7 @@
     }
     _draw(p) {
       const { w, h } = this._sz, pad = this._pad, k = this._kd, y = 1 + this._top;
-      p.strokeRound(0, 0, w, h, 2, DIM);
+      p.strokeRound(0, 0, w, h, 2, RULE);
       if (this._still) {
         const lh = (this._font === 'body' ? 12 : 10) * k;
         this._lines.forEach((cols, i) => p.text(cols, 1 + pad, y + i * lh, k, TONE));
@@ -1175,8 +1193,8 @@
       const { w, h } = this._sz, r = h >> 1, v = this.getAttribute('variant'), prim = v === 'primary';
       const dis = this.disabled, busy = this.loading && !dis;
       const down = this._down && !dis && !busy, hover = this._hover && !dis && !busy;
-      let edge = v === 'ghost' ? 0 : prim ? ACCENT : FG, fill = prim ? ACCENT_DIM : 0, ink = FG;
-      if (hover) fill = prim ? ACCENT_MID : DIM;
+      let edge = v === 'ghost' ? 0 : prim ? ACCENT : FG, fill = prim ? ACCENT_DIM : 0, ink = v === 'ghost' ? LABEL : FG;
+      if (hover) { fill = prim ? ACCENT_MID : SHADE; ink = FG; }
       if (down) { fill = prim ? ACCENT : FG; ink = BLANK; }
       if (dis) { edge = edge && DIM; fill = 0; ink = this._cols.length ? MUTED : DIM; }   // an icon alone goes dim, so it reads as off
       if (fill) p.fillRound(0, 0, w, h, r, fill);
@@ -1328,20 +1346,20 @@
     _draw(p) {
       const w = this._sz.w, dis = this.disabled, { min, max } = this;
       const f = max > min ? (this.value - min) / (max - min) : 0, y = this._top;
-      p.text(this._labC, 0, 0, 1, dis ? MUTED : FG);
-      p.text(this._valC, w - this._valC.length, 0, 1, dis ? MUTED : FG);
+      p.text(this._labC, 0, 0, 1, dis ? MUTED : LABEL);
+      p.text(this._valC, w - this._valC.length, 0, 1, dis ? MUTED : VALUE);
       if (!this._thW) {
         // Level: one column every other dot, rising left to right; the last lit one is white.
         const n = Math.max(2, (w + 1) >> 1), lit = Math.round(f * n), R = this._rows;
         for (let i = 0; i < n; i++) {
           const ch = 1 + Math.round(i / (n - 1) * (R - 1));
-          p.rect(i * 2, y + R - ch, 1, ch, i >= lit ? DIM : dis ? MUTED : i === lit - 1 ? FG : ACCENT);
+          p.rect(i * 2, y + R - ch, 1, ch, i >= lit ? RULE : dis ? MUTED : i === lit - 1 ? FG : ACCENT);
         }
         return;
       }
       const R = this._rail, E = this._ext, T = this._thW, tx = Math.round(f * (w - T)), ry = y + E;
       p.rect(0, ry, tx - 1, R, dis ? DIM : ACCENT);
-      p.rect(tx + T + 1, ry, w - tx - T - 1, R, DIM);
+      p.rect(tx + T + 1, ry, w - tx - T - 1, R, RULE);
       p.rect(tx, y, T, R + 2 * E, dis ? MUTED : FG);
     }
   }
@@ -1412,10 +1430,10 @@
     _draw(p) {
       const w = this._sz.w, th = this._th, tw = this._tw, on = this.checked, dis = this.disabled;
       const ly = (th - 7) >> 1, sx = w - tw, kd = th - 4;
-      p.text(this._labC, 0, ly, 1, dis ? MUTED : FG);
+      p.text(this._labC, 0, ly, 1, dis ? MUTED : LABEL);
       p.strokeRound(sx, 0, tw, th, th >> 1, on && !dis ? ACCENT : DIM);
       p.fillRound(on ? sx + tw - 2 - kd : sx + 2, 2, kd, kd, kd >> 1, dis ? (on ? ACCENT_DIM : DIM) : on ? ACCENT : MUTED);
-      p.text(this._word, sx - px(10) - this._word.length, ly, 1, dis ? DIM : on ? FG : MUTED);
+      p.text(this._word, sx - px(10) - this._word.length, ly, 1, dis ? DIM : on ? VALUE : MUTED);
     }
   }
 
@@ -1634,18 +1652,18 @@
     _draw(p) {
       const st = this._st, w = this._sz.w, H = this._fh, fy = this._fy, pad = this._pad, sc = this._scroll;
       const toned = this.hasAttribute('tone') || this.hasAttribute('accent');
-      p.text(this._labC, 0, 0, 1, st.dis ? MUTED : FG);
-      const edge = st.dis ? DIM : toned ? TONE : st.on ? ACCENT : this._hover ? FG : MUTED;
+      p.text(this._labC, 0, 0, 1, st.dis ? MUTED : LABEL);
+      const edge = st.dis ? DIM : toned ? TONE : st.on ? ACCENT : this._hover ? FG : EDGE;
       p.strokeRound(0, fy, w, H, 2, edge);
-      const ty = fy + ((H - 7) >> 1), ink = st.dis ? MUTED : FG;
+      const ty = fy + ((H - 7) >> 1), ink = st.dis ? MUTED : VALUE;
       if (this._sw) {
         // - and +, each behind a divider; the last one's right side is the frame.
         const sw = this._sw;
         for (const [d, x, off] of [[-1, this._iw, st.dnOff], [1, this._iw + sw, st.upOff]]) {
           const inner = d < 0 ? sw - 1 : sw - 2;
           p.rect(x, fy, 1, H, edge);
-          if (this._press === d && !off) p.rect(x + 1, fy + 1, inner, H - 2, DIM);
-          p.icon(d < 0 ? 'minus' : 'plus', x + 1 + ((inner - 7) >> 1), ty, off ? DIM : FG);
+          if (this._press === d && !off) p.rect(x + 1, fy + 1, inner, H - 2, SHADE);
+          p.icon(d < 0 ? 'minus' : 'plus', x + 1 + ((inner - 7) >> 1), ty, off ? DIM : LABEL);
         }
       }
       if (!st.v.length) {
@@ -1657,7 +1675,7 @@
       for (let i = sc; i < end; i++) {
         const x = pad + (i - sc) * 6;
         // Selection and caret run from the accent rows over a capital to the bottom of the descenders.
-        if (st.on && i >= lo && i < hi) p.rect(x - 1, ty - 2, 7, 11, DIM);
+        if (st.on && i >= lo && i < hi) p.rect(x - 1, ty - 2, 7, 11, SHADE);
         if (st.pw) { p.rect(x + 1, ty + 2, 3, 3, ink); continue; }
         const cols = layout([{ ch: st.v[i], a: false }], 'body');
         p.text(cols, x + ((5 - cols.length) >> 1), ty, 1, ink);
@@ -1767,10 +1785,10 @@
     _draw(p) {
       const st = this._st, w = this._sz.w, H = this._fh, fy = this._fy, pad = this._pad;
       const toned = this.hasAttribute('tone') || this.hasAttribute('accent');
-      p.text(this._labC, 0, 0, 1, st.dis ? MUTED : FG);
-      p.strokeRound(0, fy, w, H, 2, st.dis ? DIM : toned ? TONE : st.on ? ACCENT : this._hover ? FG : MUTED);
+      p.text(this._labC, 0, 0, 1, st.dis ? MUTED : LABEL);
+      p.strokeRound(0, fy, w, H, 2, st.dis ? DIM : toned ? TONE : st.on ? ACCENT : this._hover ? FG : EDGE);
       const ty = fy + ((H - 7) >> 1), cx = w - pad - 7;
-      p.icon('chevron', cx, ty, st.dis ? DIM : st.on ? ACCENT : FG);
+      p.icon('chevron', cx, ty, st.dis ? DIM : st.on ? ACCENT : LABEL);
       // The chosen option, cut with an ellipsis where it would run into the chevron.
       const room = cx - pad - 4;
       let cols = colsOf(st.text);
@@ -1782,7 +1800,7 @@
         if (cols.length > room) cols = dots;
       }
       p.clip(pad, -REACH, Math.max(0, room), H + fy + 2 * REACH);
-      p.text(cols, pad, ty, 1, st.dis || st.ph ? MUTED : FG);
+      p.text(cols, pad, ty, 1, st.dis || st.ph ? MUTED : VALUE);
       p.clip();
       this._note.forEach((cols, i) => p.text(cols, 0, this._ny + i * 12, 1, toned ? TONE : MUTED));
     }
@@ -1835,7 +1853,7 @@
     _measure() { return { w: this._cols.length + 10, h: 11 }; }
     _draw(p) {
       const { w, h } = this._sz;
-      p.fillRound(0, 0, w, h, 5, this._toned ? TONE_DIM : DIM);
+      p.fillRound(0, 0, w, h, 5, this._toned ? TONE_DIM : SHADE);
       p.text(this._cols, 5, 2, 1, this._toned ? TONE : FG);
     }
   }
@@ -1880,7 +1898,7 @@
     static tpl = `<div role="separator" part="rule">${BOX}</div>`;
     _measure(wd) { return { w: wd, h: 1 }; }
     _draw(p) {
-      const c = this.hasAttribute('tone') || this.hasAttribute('accent') ? TONE : DIM, w = this._sz.w;
+      const c = this.hasAttribute('tone') || this.hasAttribute('accent') ? TONE : RULE, w = this._sz.w;
       if (this.hasAttribute('dotted')) p.dotted(0, 0, w, c);
       else p.rect(0, 0, w, 1, c);
     }
@@ -1926,6 +1944,7 @@
         calc(var(--dot-pitch,2px) * 8 * var(--dot-panel-frame,1))}
   `;
   class DotPanel extends DotElement {
+    static untoned = TITLE;
     static observedAttributes = ['label', 'note', 'level', 'collapsible', 'open', 'tone', 'accent'];
     static css = PANEL_CSS;
     static tpl = `<div class="frame" part="panel">${BOX}<div class="wrap"></div></div>`;
@@ -1985,14 +2004,14 @@
         // The title at the content's edge, then a rule to the chevron or the end.
         const x0 = t.length ? t.length + 4 : 0, x1 = this._coll ? w - 10 : w;
         if (t.length) p.text(t, 0, 0, 1, TONE);
-        if (x1 > x0) p.rect(x0, 3, x1 - x0, 1, DIM);
+        if (x1 > x0) p.rect(x0, 3, x1 - x0, 1, RULE);
         if (this._coll) p.icon('chevron', w - 7, 0, FG, 1, this.open);
         return;
       }
       const tx = 8;
       // The frame's top edge runs through the middle of the 7-row title line.
-      if ((!this._coll || this.open) && h > 7) p.strokeRound(0, 3, w, h - 3, 2, DIM);
-      else p.rect(0, 3, w, 1, DIM);
+      if ((!this._coll || this.open) && h > 7) p.strokeRound(0, 3, w, h - 3, 2, RULE);
+      else p.rect(0, 3, w, 1, RULE);
       if (t.length) { p.rect(tx - 2, 3, t.length + 4, 1, 0); p.text(t, tx, 0, 1, TONE); }
       if (this._coll) {
         // Bright, so a closed section reads as one to open, not as a rule.
@@ -2043,6 +2062,7 @@
     .x:focus-visible{${FOCUS}}
   `;
   class DotDialog extends DotElement {
+    static untoned = TITLE;
     static observedAttributes = ['label', 'open', 'tone', 'accent'];
     static css = DIALOG_CSS;
     static tpl = '<style class="skin"></style><dialog part="dialog" aria-labelledby="t"><div class="sheet" part="sheet">' + BOX +
@@ -2113,7 +2133,7 @@
     _draw(p) {
       const { w, h } = this._sz, M = DIALOG_M, cx = w - M - 15, tx = M + 8;
       if (w < 2 * M + 30 || h < 2 * M + 8) return;
-      p.strokeRound(M, M, w - 2 * M, h - 2 * M, 2, DIM);
+      p.strokeRound(M, M, w - 2 * M, h - 2 * M, 2, RULE);
       // The title stops short of the close icon.
       const t = this._title.slice(0, Math.max(0, cx - 4 - tx));
       if (t.length) { p.rect(tx - 2, M, t.length + 4, 1, 0); p.text(t, tx, M - 3, 1, TONE); }
@@ -2268,7 +2288,7 @@
       const w = this._sz.w, H = this._ph, W = this._pw, x = (w - W) >> 1, y = this._pad, k = this._ik, n = 7 * k;
       const cur = this.current, dis = this.disabled, down = this._down && !dis, hover = this._hover && !dis;
       let fill = cur ? ACCENT_DIM : 0, edge = cur ? ACCENT : 0, ink = FG, text = cur ? FG : MUTED;
-      if (hover) { fill = cur ? ACCENT_MID : DIM; text = FG; }
+      if (hover) { fill = cur ? ACCENT_MID : SHADE; text = FG; }
       if (down) { fill = cur ? ACCENT : FG; ink = BLANK; }
       if (dis) { fill = 0; edge = edge && DIM; ink = text = DIM; }
       if (fill) p.fillRound(x, y, W, H, H >> 1, fill);
@@ -2281,7 +2301,7 @@
   }
 
   window.Dotmatrix = {
-    version: '0.9.0',
+    version: '0.10.0',
     theme,
     glyph,
     layout,

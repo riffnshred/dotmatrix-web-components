@@ -44,7 +44,7 @@
 
     <dot-panel label="Text">
       <dot-text>Longer notes wrap at word boundaries. The quick brown fox jumps over the lazy dog; judge the body text at arm's length. Numbers line up: 0123456789.</dot-text>
-      <dot-text muted>Muted, for labels and notes.</dot-text>
+      <dot-text muted>Muted, for notes.</dot-text>
       <dot-text tone="warn">Fan at 82%, in the warn tone</dot-text>
       <dot-text size="l">Body text at x2</dot-text>
     </dot-panel>
@@ -135,12 +135,14 @@
       </dot-grid>
       <dot-grid row>
         <dot-led tone="ok">Power</dot-led>
+        <dot-led tone="info">Sync</dot-led>
         <dot-led tone="warn" blink>Busy</dot-led>
         <dot-led tone="err" blink="fast">Fault</dot-led>
         <dot-led tone="off">Idle</dot-led>
       </dot-grid>
       <dot-grid row>
-        <dot-badge>v0.9</dot-badge>
+        <dot-badge>v0.10</dot-badge>
+        <dot-badge tone="info">Update</dot-badge>
         <dot-badge tone="ok">Ready</dot-badge>
         <dot-badge tone="warn">82%</dot-badge>
         <dot-badge tone="err">Fault</dot-badge>

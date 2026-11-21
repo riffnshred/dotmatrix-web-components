@@ -59,7 +59,7 @@
   .toc ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:0 14px}
   .toc a{display:inline-block;padding:4px 0;font-size:14px;color:#C9C9C4;text-decoration:none}
   .toc a:hover{color:#FFFFFF;text-decoration:underline}
-  .toc a:focus-visible{outline:2px solid var(--dot-accent,#FF2E2E);outline-offset:2px}
+  .toc a:focus-visible{outline:2px solid var(--dot-accent,#FFA51F);outline-offset:2px}
   @media (min-width:900px){
     .docs{grid-template-columns:160px minmax(0,1fr)}
     .toc{display:block;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto}
@@ -169,7 +169,7 @@
         <p>These attributes work the same way on every component that has them:</p>
         <script type="text/plain" class="api">
           text   | text | The text, when it is not the element's content. On a button it is `label`, on a value `value`. The attribute wins if both are set.
-          tone   | `accent`, `ok`, `warn`, `err` | Colours the component. Pair a colour with a word, so it never carries meaning alone.
+          tone   | `accent`, `info`, `ok`, `warn`, `err` | Colours the component. Pair a colour with a word, so it never carries meaning alone.
           accent | boolean | Short for `tone="accent"`.
           size   | `s`, `m`, `l`, `xl` | Text comes in whole multiples of its font, x1 to x4. Each component lists the sizes it has.
         </script>
@@ -178,6 +178,7 @@
           <dot-text>Wrap a word in em to <em>accent</em> it.</dot-text>
           <dot-grid row>
             <dot-badge tone="accent">accent</dot-badge>
+            <dot-badge tone="info">info</dot-badge>
             <dot-badge tone="ok">ok</dot-badge>
             <dot-badge tone="warn">warn</dot-badge>
             <dot-badge tone="err">err</dot-badge>
@@ -284,7 +285,7 @@
           level       | `1` to `6` | Heading level of the title. Default `2`.
           collapsible | boolean | The title opens and closes the panel. Closed, the panel is just its title line.
           open        | boolean | A collapsible panel starts open.
-          tone        | `accent`, `ok`, `warn`, `err` | Colour of the title.
+          tone        | `accent`, `info`, `ok`, `warn`, `err` | Colour of the title.
           --dot-panel-frame | `0` | CSS: no frame. The title sits on a rule at the content's edge, the content flush with it, like a section of a phone's settings. Set it in a media query to drop the frames on a phone only.
         </script>
         <p>JS: the <code>open</code> property, and a <code>toggle</code> event when a collapsible panel opens or closes.</p>
@@ -320,7 +321,7 @@
         <script type="text/plain" class="api">
           label              | text | The title, set into the top edge. It also names the dialog for screen readers.
           open               | boolean | Shows the dialog. It goes away when the dialog closes.
-          tone               | `accent`, `ok`, `warn`, `err` | Colour of the title.
+          tone               | `accent`, `info`, `ok`, `warn`, `err` | Colour of the title.
           --dot-dialog-width | length | Widest the dialog gets. Default `560px`. On a phone it leaves 16 px each side.
         </script>
         <p>JS: <code>show()</code>, <code>close()</code> and the <code>open</code> property, and a <code>close</code> event however it closes. A <code>&lt;form method="dialog"&gt;</code> inside does not close it; call <code>close()</code> from its button instead.</p>
@@ -375,7 +376,7 @@
         <p><code>&lt;dot-rule&gt;</code> A one-dot divider across the width it has.</p>
         <script type="text/plain" class="api">
           dotted | boolean | Lights every other dot.
-          tone   | `accent`, `ok`, `warn`, `err` | Colour. Dim when unset.
+          tone   | `accent`, `info`, `ok`, `warn`, `err` | Colour. The rule colour when unset.
         </script>
         <script type="text/plain" class="ex" data-title="Solid, dotted and toned">
           <dot-rule></dot-rule>
@@ -403,7 +404,7 @@
           text  | text | The heading, when it is not the content.
           size  | `s`, `m`, `l`, `xl` | x1, x2, x3 or x4. Default `m`.
           level | `1` to `6` | Heading level for screen readers. Default `2`.
-          tone  | `accent`, `ok`, `warn`, `err` | Colour.
+          tone  | `accent`, `info`, `ok`, `warn`, `err` | Colour.
         </script>
         <script type="text/plain" class="ex" data-title="Sizes">
           <dot-heading size="xl">Matrix</dot-heading>
@@ -418,9 +419,9 @@
         <p><code>&lt;dot-text&gt;</code> Body text in the mixed-case 5&times;9 font, wrapped to its width. For paragraphs, labels and notes.</p>
         <script type="text/plain" class="api">
           text  | text | The text, when it is not the content.
-          muted | boolean | Dimmer, for notes and labels.
+          muted | boolean | In the notes colour, `--dot-muted`.
           size  | `l` | Twice the size.
-          tone  | `accent`, `ok`, `warn`, `err` | Colour.
+          tone  | `accent`, `info`, `ok`, `warn`, `err` | Colour.
         </script>
         <script type="text/plain" class="ex" data-title="Plain, muted, toned, large">
           <dot-text>The quick brown fox jumps over the lazy dog. Words in <em>em</em> take the accent colour.</dot-text>
@@ -439,7 +440,7 @@
           label | text | Above the value.
           note  | text | Below the value.
           size  | `s`, `m`, `l`, `xl` | The value at x1, x2, x3 or x4. Default `m`.
-          tone  | `accent`, `ok`, `warn`, `err` | Colour of the value.
+          tone  | `accent`, `info`, `ok`, `warn`, `err` | Colour of the value.
         </script>
         <p>JS: <code>el.value = 24.1</code> updates it.</p>
         <script type="text/plain" class="ex" data-title="Readouts">
@@ -464,7 +465,7 @@
           name  | an icon name | Which icon. All of them are below.
           size  | `l`, `xl` | x2 or x3. x1 when unset.
           label | text | Name for screen readers.
-          tone  | `accent`, `ok`, `warn`, `err` | Colour.
+          tone  | `accent`, `info`, `ok`, `warn`, `err` | Colour.
         </script>
         <script type="text/plain" class="ex" data-title="Sizes and tone">
           <dot-grid row>
@@ -488,7 +489,7 @@
           speed  | number | In the font's own pixels per second, so every size reads at the same pace. Default `20`.
           paused | boolean | Holds it in place.
           pause-on-hover | boolean | Holds it while a mouse is over it. It keeps moving when unset.
-          tone   | `accent`, `ok`, `warn`, `err` | Colour.
+          tone   | `accent`, `info`, `ok`, `warn`, `err` | Colour.
         </script>
         <p>JS: the <code>speed</code>, <code>paused</code> and <code>pauseOnHover</code> properties.</p>
         <script type="text/plain" class="ex" data-title="Capitals and body font">
@@ -602,7 +603,7 @@
         <script type="text/plain" class="api">
           label | text | Above the field. It also names the input for screen readers.
           note  | text | Below the field.
-          tone  | `accent`, `ok`, `warn`, `err` | Colours the frame and note: `err` for a value that is wrong.
+          tone  | `accent`, `info`, `ok`, `warn`, `err` | Colours the frame and note: `err` for a value that is wrong.
           stepper | boolean | For a number: - and + at the field's end. They step the input by its `step`, `min` and `max` and fire its `input` and `change`, without taking focus, so a phone's keyboard stays down.
           slot="label" | children | On the label's line, after its text: a help button, a badge.
         </script>
@@ -634,7 +635,7 @@
         <script type="text/plain" class="api">
           label | text | Above the field. It also names the select for screen readers.
           note  | text | Below the field.
-          tone  | `accent`, `ok`, `warn`, `err` | Colours the frame and note.
+          tone  | `accent`, `info`, `ok`, `warn`, `err` | Colours the frame and note.
           slot="label" | children | On the label's line, after its text: a help button, a badge.
         </script>
         <p>JS: setting <code>select.value</code> from a script does not repaint the dots. Set <code>dotSelect.value</code> instead, or call <code>dotSelect.render()</code>. Changes to the options repaint by themselves.</p>
@@ -691,7 +692,7 @@
         <p><code>&lt;dot-led&gt;</code> An indicator light, with text beside it if you give it some.</p>
         <script type="text/plain" class="api">
           text  | text | Beside the light, when it is not the content.
-          tone  | `accent`, `ok`, `warn`, `err`, `off` | Colour of the light. `off` draws it dark.
+          tone  | `accent`, `info`, `ok`, `warn`, `err`, `off` | Colour of the light. `off` draws it dark.
           blink | boolean, `fast` | Flashes it.
           size  | `s`, `m`, `l` | 1, 3 or 5 dots square. Default `m`.
           label | text | Name for screen readers, in place of the text.
@@ -712,7 +713,7 @@
         <p><code>&lt;dot-badge&gt;</code> A short tag on a dim pill.</p>
         <script type="text/plain" class="api">
           text   | text | The tag, when it is not the content.
-          tone   | `accent`, `ok`, `warn`, `err` | Colours the pill and the text.
+          tone   | `accent`, `info`, `ok`, `warn`, `err` | Colours the pill and the text.
           accent | boolean | Short for `tone="accent"`.
         </script>
         <script type="text/plain" class="ex" data-title="Tones">
@@ -775,13 +776,24 @@
       <section id="theming">
         <dot-heading size="l">Theming</dot-heading>
         <p>Dark only. <code>&lt;dot-app&gt;</code> applies the palette below, and any style of your own overrides it: set the properties on <code>:root</code>. Colours are painted into the dots, so a change made from a script shows after <code>Dotmatrix.refresh()</code>.</p>
+        <p>Each part of a component has its own colour, so labels, values, notes, frames and rules read apart: warm greys in steps, with amber titles and accent. The greys don't follow <code>--dot-fg</code>, so a page with its own text colour sets them too. A page that applies no theme at all gets greys mixed from its <code>--dot-fg</code> and <code>--dot-bg</code>.</p>
         <script type="text/plain" class="api">
-          --dot-bg     | colour | Background. `#000000`
-          --dot-fg     | colour | Text and lit dots. `#ffffff`
-          --dot-accent | colour | Accent words, primary buttons, focus rings. `#FF2E2E`
-          --dot-ok     | colour | `tone="ok"` and online. `#2BE36F`
-          --dot-warn   | colour | `tone="warn"` and connecting. `#FFB01F`
-          --dot-err    | colour | `tone="err"` and errors. `#FF2E2E`
+          --dot-bg      | colour | Background. `#000000`
+          --dot-fg      | colour | Text, outline buttons, icons, a hovered field's frame. `#F4EFE8`
+          --dot-heading | colour | Headings, and the bar's title. `#FFFFFF`
+          --dot-title   | colour | Panel and dialog titles. `#FFA51F`
+          --dot-label   | colour | A control's label, a ghost button, a select's chevron, a readout's label. `#CFC6BB`
+          --dot-value   | colour | What a control is set to, and a readout's value. `#FFFFFF`
+          --dot-muted   | colour | Notes, placeholders, `muted` text, a toggle's Off. `#968C80`
+          --dot-edge    | colour | A field's frame at rest. `#71675D`
+          --dot-rule    | colour | Rules, panel and dialog frames, a slider's empty rail. `#463F38`
+          --dot-shade   | colour | Behind a hovered button or tab, a plain badge, selected text. `#3A332C`
+          --dot-dim     | colour | Off and disabled. `#4A433B`
+          --dot-accent  | colour | Accent words, primary buttons, focus rings, what is on or selected. `#FFA51F`
+          --dot-info    | colour | `tone="info"`. `#4FC3F7`
+          --dot-ok      | colour | `tone="ok"` and online. `#2BE36F`
+          --dot-warn    | colour | `tone="warn"` and connecting. `#FFE14D`
+          --dot-err     | colour | `tone="err"` and errors. `#FF4646`
           --dot-target | number | The dot pitch to aim for, in CSS px; it rounds to whole device pixels. Default `2`.
           --dot-fill   | 0 to 1 | How much of the pitch a dot fills. Default `0.65`.
           --dot-unlit  | 0 to 1 | Brightness of the unlit dots. Default `0.12`.
