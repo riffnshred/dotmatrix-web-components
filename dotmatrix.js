@@ -1,5 +1,5 @@
 /*!
- * Dotmatrix v0.10.0 - dot-matrix web components for LED panel control pages.
+ * Dotmatrix v0.11.0 - dot-matrix web components for LED panel control pages.
  * The page is one grid of dots, like the HUB75 panels it controls.
  * Surfaces: <dot-matrix>, <dot-app>
  * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-marquee>
@@ -7,6 +7,7 @@
  * Status:   <dot-led>, <dot-badge>, <dot-status>
  * Layout:   <dot-bar>, <dot-tabbar>, <dot-tab>, <dot-panel>, <dot-dialog>, <dot-grid>, <dot-rule>
  * Slider, toggle, input and select take slot="label" children (a help button, a badge) on their label line.
+ * A toggle with off-label and on-label switches between two named answers instead of On and Off.
  * Colours: a palette of roles (--dot-title, --dot-label, --dot-value, --dot-edge, --dot-rule, ...) and five tones.
  * No dependencies. Drop in with <script src="dotmatrix.js"></script>
  */
@@ -1375,11 +1376,14 @@
    * switch on the right. The whole row is one role="switch" button.
    * Form-associated like a checkbox: it submits `value` (default "on")
    * only while checked, and reports type "checkbox" so htmx does too.
+   * With off-label and on-label it chooses between two answers, neither
+   * of them "off": the switch sits between the two words, the chosen one
+   * lit, and stays in the accent at either end.
    * ================================================================== */
   class DotToggle extends DotElement {
     static delegatesFocus = true;
     static formAssociated = true;
-    static observedAttributes = ['checked', 'disabled', 'label', 'value'];
+    static observedAttributes = ['checked', 'disabled', 'label', 'value', 'off-label', 'on-label'];
     static css = `
       button{all:unset;display:block;box-sizing:border-box;width:100%;position:relative;cursor:pointer;border-radius:2px;
         touch-action:manipulation;-webkit-tap-highlight-color:transparent}
@@ -1419,12 +1423,18 @@
     formResetCallback() { this._c = null; this.invalidate(); }
     _sync() {
       const on = this.checked, b = this._btn, label = this.getAttribute('label') || '';
+      const offL = this.getAttribute('off-label'), onL = this.getAttribute('on-label');
+      // Two answers only when both are named; otherwise the plain On/Off switch.
+      this._pair = offL != null && onL != null;
       b.setAttribute('aria-checked', String(on));
-      b.setAttribute('aria-label', label || 'Toggle');
+      // A screen reader hears the answer itself, since "on" alone doesn't say which.
+      b.setAttribute('aria-label', (label || 'Toggle') + (this._pair ? ': ' + (on ? onL : offL) : ''));
       b.disabled = this.disabled;
       if (this._int) this._int.setFormValue(on ? this.value : null);
       this._labC = colsOf(label);
       this._word = colsOf(on ? 'On' : 'Off');
+      this._offC = colsOf(offL);
+      this._onC = colsOf(onL);
     }
     _measure(wd) {
       const th = this._th = Math.max(7, odd(px(22)));
@@ -1435,11 +1445,19 @@
     _moved() { movedLabel(this); }
     _draw(p) {
       const w = this._sz.w, th = this._th, tw = this._tw, on = this.checked, dis = this.disabled;
-      const ly = (th - 7) >> 1, sx = w - tw, kd = th - 4;
+      const ly = (th - 7) >> 1, kd = th - 4, gap = px(10), pair = this._pair;
+      const sx = pair ? w - this._onC.length - gap - tw : w - tw;
+      // Neither of two answers is "off", so the switch keeps the accent at both ends.
+      const lit = on || pair;
       p.text(this._labC, 0, ly, 1, dis ? MUTED : LABEL);
-      p.strokeRound(sx, 0, tw, th, th >> 1, on && !dis ? ACCENT : DIM);
-      p.fillRound(on ? sx + tw - 2 - kd : sx + 2, 2, kd, kd, kd >> 1, dis ? (on ? ACCENT_DIM : DIM) : on ? ACCENT : MUTED);
-      p.text(this._word, sx - px(10) - this._word.length, ly, 1, dis ? DIM : on ? VALUE : MUTED);
+      p.strokeRound(sx, 0, tw, th, th >> 1, lit && !dis ? ACCENT : DIM);
+      p.fillRound(on ? sx + tw - 2 - kd : sx + 2, 2, kd, kd, kd >> 1, dis ? (lit ? ACCENT_DIM : DIM) : lit ? ACCENT : MUTED);
+      if (pair) {
+        p.text(this._offC, sx - gap - this._offC.length, ly, 1, dis ? DIM : on ? MUTED : VALUE);
+        p.text(this._onC, sx + tw + gap, ly, 1, dis ? DIM : on ? VALUE : MUTED);
+      } else {
+        p.text(this._word, sx - gap - this._word.length, ly, 1, dis ? DIM : on ? VALUE : MUTED);
+      }
     }
   }
 
@@ -2307,7 +2325,7 @@
   }
 
   window.Dotmatrix = {
-    version: '0.10.0',
+    version: '0.11.0',
     theme,
     glyph,
     layout,

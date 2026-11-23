@@ -578,12 +578,14 @@
 
       <section id="toggle">
         <dot-heading size="l">Toggle</dot-heading>
-        <p><code>&lt;dot-toggle&gt;</code> An on/off switch with its label. The whole row is the switch. In a form it acts like a checkbox: it sends its value only while on.</p>
+        <p><code>&lt;dot-toggle&gt;</code> An on/off switch with its label. The whole row is the switch. In a form it acts like a checkbox: it sends its value only while on. With <code>off-label</code> and <code>on-label</code> it chooses between two answers instead, the switch between the two words and the chosen one lit.</p>
         <script type="text/plain" class="api">
           label    | text | On the left.
           checked  | boolean | Starts on.
           name     | text | The field name in a form.
           value    | text | Sent while on. Default `on`.
+          off-label | text | With `on-label`: the answer while off, left of the switch. Neither answer reads as off, so the switch stays lit.
+          on-label | text | With `off-label`: the answer while on, right of the switch.
           disabled | boolean | Greyed out; cannot be switched.
           slot="label" | children | On the label's line, after its text. A button there never flips the switch.
         </script>
@@ -594,6 +596,10 @@
           </dot-toggle>
           <dot-toggle label="Night mode"></dot-toggle>
           <dot-toggle label="Locked" checked disabled></dot-toggle>
+        </script>
+        <script type="text/plain" class="ex" data-title="Two answers">
+          <dot-toggle label="Teams" off-label="Favorite" on-label="Both" checked></dot-toggle>
+          <dot-toggle label="Games" off-label="Main" on-label="All"></dot-toggle>
         </script>
       </section>
 
