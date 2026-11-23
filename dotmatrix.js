@@ -1226,7 +1226,7 @@
     static css = `
       .track{position:absolute;left:0;right:0;cursor:pointer;outline:none;border-radius:999px;
         touch-action:pan-y;-webkit-tap-highlight-color:transparent}
-      .track:focus-visible{${FOCUS}}
+      .track:focus-visible:not(.ptr){${FOCUS}}
       :host([disabled]) .track{cursor:default}
       ${LABEL_CSS}
     `;
@@ -1237,15 +1237,20 @@
       this._int = this.attachInternals ? this.attachInternals() : null;
       this._v = null;   // the dirty value; null means "use the value attribute"
       const t = this._track = this.$('.track');
+      // A press focuses the track so the arrow keys work after it, but Chrome takes a focus made
+      // by script as a keyboard one and would ring the rail mid-drag. .ptr hides the ring until
+      // a key is pressed or the track loses focus.
       t.addEventListener('pointerdown', e => {
         if (this.disabled || e.button !== 0) return;
         t.setPointerCapture(e.pointerId);
         this._drag = true;
         this._start = this.value;
         this._fromX(e.clientX);
+        t.classList.add('ptr');
         t.focus();
         e.preventDefault();
       });
+      t.addEventListener('blur', () => t.classList.remove('ptr'));
       t.addEventListener('pointermove', e => { if (this._drag) this._fromX(e.clientX); });
       const end = () => {
         if (!this._drag) return;
@@ -1255,6 +1260,7 @@
       t.addEventListener('pointerup', end);
       t.addEventListener('pointercancel', end);
       t.addEventListener('keydown', e => {
+        t.classList.remove('ptr');
         if (this.disabled) return;
         const { min, max, step } = this, s = step > 0 ? step : (max - min) / 100, big = Math.max(s, (max - min) / 10);
         let v = this.value;
