@@ -112,6 +112,7 @@
         <li><a href="#text">Text</a></li>
         <li><a href="#value">Value</a></li>
         <li><a href="#icon">Icon</a></li>
+        <li><a href="#image">Image</a></li>
         <li><a href="#marquee">Marquee</a></li>
       </ul>
       <p>Controls</p>
@@ -227,12 +228,12 @@
 
       <section id="tabbar">
         <dot-heading size="l">Tab bar</dot-heading>
-        <p><code>&lt;dot-tabbar&gt;</code> The bottom navigation of a phone app: a row of <code>&lt;dot-tab&gt;</code>s sharing the width, each an icon over its label, or a larger icon alone, with a rule along the top. As the last child of <code>&lt;dot-app&gt;</code> it spans the page, stays at the bottom of the screen and clears the home indicator. It has its own unlit grid, so the page scrolls under it. Elsewhere it is a plain row.</p>
+        <p><code>&lt;dot-tabbar&gt;</code> The bottom navigation of a phone app: a row of <code>&lt;dot-tab&gt;</code>s sharing the width, each an icon over its label, or a larger icon alone, as big as a phone's own tab bar draws one, with a rule along the top. As the last child of <code>&lt;dot-app&gt;</code> it spans the page, stays at the bottom of the screen and clears the home indicator. It has its own unlit grid, so the page scrolls under it. Elsewhere it is a plain row.</p>
         <p>In <code>&lt;dot-app&gt;</code>, it sets <code>--dot-tabbar-height</code> on the page, so a sticky bar of your own sits above it with <code>bottom: var(--dot-tabbar-height, 0px)</code>. Hidden with <code>display: none</code> (say, on a wide screen that has the pages in the top bar), it sets <code>0px</code>.</p>
         <p>While the on-screen keyboard is up, it steps aside, so it never shows above the keyboard over the field being typed in, and a sticky bar sitting on it drops to the bottom. It tells the keyboard from the visual viewport, which phones shrink for it by default, so leave the viewport's <code>interactive-widget</code> at <code>resizes-visual</code>.</p>
         <script type="text/plain" class="api">
           href    | URL | On a tab: makes it a link. Without it, the tab is a button.
-          icon    | icon name | On a tab: the icon over the label. With no label it draws at x2, in a taller pill.
+          icon    | icon name | On a tab: the icon over the label. With no label it draws in a taller pill, at a phone tab bar's size: `home`, `matrix` and `server` have 9&times;9 art for it; any other icon draws at 7&times;7.
           label   | text | On a tab: the label, or put it in the tab as text.
           title   | text | On a tab with no label: its name, for screen readers.
           current | boolean | On a tab: the page you are on. It lights up, its icon in a pill, and gets `aria-current`.
@@ -250,7 +251,7 @@
           <dot-tabbar>
             <dot-tab href="#tabbar" icon="home" title="Home" current></dot-tab>
             <dot-tab href="#tabbar" icon="matrix" title="Scoreboard"></dot-tab>
-            <dot-tab href="#tabbar" icon="wifi" title="Server"></dot-tab>
+            <dot-tab href="#tabbar" icon="server" title="Server"></dot-tab>
           </dot-tabbar>
         </script>
         <script type="text/plain" class="snippet">
@@ -479,6 +480,25 @@
         </dot-panel>
       </section>
 
+      <section id="image">
+        <dot-heading size="l">Image</dot-heading>
+        <p><code>&lt;dot-image&gt;</code> A picture drawn one dot per pixel, as an LED panel shows it: a team's logo, a frame of the panel. A black or transparent pixel is an unlit dot, and a dim one fades into the unlit grid. It draws in the picture's own colours, so keep it panel-sized: a 64&times;32 picture is 64&times;32 dots.</p>
+        <script type="text/plain" class="api">
+          src     | a URL | The picture. The page must be able to read its pixels: same origin, a `data:` URL, or a server that sends CORS headers.
+          alt     | text | Name for screen readers. Without it (and without a caption) screen readers skip it.
+          caption | text | A line in the capitals font, centred under the picture. Names it for screen readers when there is no `alt`.
+          width, height | dots | Hold its place until the picture loads, as on an `<img>`. The picture then takes its own size.
+          tone    | `accent`, `info`, `ok`, `warn`, `err` | The caption's colour. The picture keeps its own.
+        </script>
+        <script type="text/plain" class="ex" data-title="With and without a caption">
+          <dot-grid row>
+            <dot-image src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAQCAYAAAAFzx/vAAAAtklEQVR42mOUE8mzZ6AjYBFj/q5NVwvF2b9r0deHnPT2ITdpPmxf8k0MmV8Zw/WKFP2MfXaO/4lRWDgDv7L+DEbiLFzqbUHQwqhuDqIMW1b6g4g45P9OhFHEWUiMWYyXMtXw+lA3V4qkRHF58jMCPhT8TtVUSMg8FnEh6lpIsXn/l8r//79U/j+xbKqB/0vlr/xfKn8FH5vaFq6C0djYNAP/l8rXw2gYm+bg/1L50P9L5UPJ0QsAT6Jc/sVhar4AAAAASUVORK5CYII=" alt="Sunset" width="28" height="16"></dot-image>
+            <dot-image src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAQCAYAAAAFzx/vAAAAtklEQVR42mOUE8mzZ6AjYBFj/q5NVwvF2b9r0deHnPT2ITdpPmxf8k0MmV8Zw/WKFP2MfXaO/4lRWDgDv7L+DEbiLFzqbUHQwqhuDqIMW1b6g4g45P9OhFHEWUiMWYyXMtXw+lA3V4qkRHF58jMCPhT8TtVUSMg8FnEh6lpIsXn/l8r//79U/j+xbKqB/0vlr/xfKn8FH5vaFq6C0djYNAP/l8rXw2gYm+bg/1L50P9L5UPJ0QsAT6Jc/sVhar4AAAAASUVORK5CYII=" caption="Dusk" width="28" height="16"></dot-image>
+            <dot-image src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAQCAYAAAAFzx/vAAAAtklEQVR42mOUE8mzZ6AjYBFj/q5NVwvF2b9r0deHnPT2ITdpPmxf8k0MmV8Zw/WKFP2MfXaO/4lRWDgDv7L+DEbiLFzqbUHQwqhuDqIMW1b6g4g45P9OhFHEWUiMWYyXMtXw+lA3V4qkRHF58jMCPhT8TtVUSMg8FnEh6lpIsXn/l8r//79U/j+xbKqB/0vlr/xfKn8FH5vaFq6C0djYNAP/l8rXw2gYm+bg/1L50P9L5UPJ0QsAT6Jc/sVhar4AAAAASUVORK5CYII=" caption="Live" tone="ok" width="28" height="16"></dot-image>
+          </dot-grid>
+        </script>
+      </section>
+
       <section id="marquee">
         <dot-heading size="l">Marquee</dot-heading>
         <p><code>&lt;dot-marquee&gt;</code> Text scrolling right to left through a frame, one dot per step, like a message on the panel. With reduced motion it stands still and wraps.</p>
@@ -578,12 +598,14 @@
 
       <section id="toggle">
         <dot-heading size="l">Toggle</dot-heading>
-        <p><code>&lt;dot-toggle&gt;</code> An on/off switch with its label. The whole row is the switch. In a form it acts like a checkbox: it sends its value only while on.</p>
+        <p><code>&lt;dot-toggle&gt;</code> An on/off switch with its label. The whole row is the switch. In a form it acts like a checkbox: it sends its value only while on. With <code>off-label</code> and <code>on-label</code> it chooses between two answers instead, the switch between the two words and the chosen one lit.</p>
         <script type="text/plain" class="api">
           label    | text | On the left.
           checked  | boolean | Starts on.
           name     | text | The field name in a form.
           value    | text | Sent while on. Default `on`.
+          off-label | text | With `on-label`: the answer while off, left of the switch. Neither answer reads as off, so the switch stays lit.
+          on-label | text | With `off-label`: the answer while on, right of the switch.
           disabled | boolean | Greyed out; cannot be switched.
           slot="label" | children | On the label's line, after its text. A button there never flips the switch.
         </script>
@@ -594,6 +616,10 @@
           </dot-toggle>
           <dot-toggle label="Night mode"></dot-toggle>
           <dot-toggle label="Locked" checked disabled></dot-toggle>
+        </script>
+        <script type="text/plain" class="ex" data-title="Two answers">
+          <dot-toggle label="Teams" off-label="Favorite" on-label="Both" checked></dot-toggle>
+          <dot-toggle label="Games" off-label="Main" on-label="All"></dot-toggle>
         </script>
       </section>
 

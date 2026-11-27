@@ -105,6 +105,8 @@
       <dot-toggle label="Auto dim" checked><dot-button slot="label" size="s" variant="ghost" icon="info" title="About auto dim"></dot-button></dot-toggle>
       <dot-toggle label="Night mode"></dot-toggle>
       <dot-toggle label="Locked" checked disabled></dot-toggle>
+      <dot-toggle label="Teams" off-label="Favorite" on-label="Both" checked></dot-toggle>
+      <dot-toggle label="Games" off-label="Main" on-label="All"></dot-toggle>
       <dot-text muted id="toggle-log">Click a row, or focus it and press Space.</dot-text>
     </dot-panel>
 
@@ -141,7 +143,7 @@
         <dot-led tone="off">Idle</dot-led>
       </dot-grid>
       <dot-grid row>
-        <dot-badge>v0.10</dot-badge>
+        <dot-badge>v0.13</dot-badge>
         <dot-badge tone="info">Update</dot-badge>
         <dot-badge tone="ok">Ready</dot-badge>
         <dot-badge tone="warn">82%</dot-badge>
@@ -207,6 +209,14 @@
     <dot-marquee size="s" font="body" tone="ok" speed="30" pause-on-hover>The body font at x1 in the ok tone, at 30 px a second, held while a mouse is over it. Long messages scroll off to the left and come back in from the right.</dot-marquee>
   </dot-panel>
 
+  <dot-panel label="Images" note="dot-image draws a picture one dot per pixel, with a caption in capitals.">
+    <dot-grid row>
+      <dot-image src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAQCAYAAAAFzx/vAAAAtklEQVR42mOUE8mzZ6AjYBFj/q5NVwvF2b9r0deHnPT2ITdpPmxf8k0MmV8Zw/WKFP2MfXaO/4lRWDgDv7L+DEbiLFzqbUHQwqhuDqIMW1b6g4g45P9OhFHEWUiMWYyXMtXw+lA3V4qkRHF58jMCPhT8TtVUSMg8FnEh6lpIsXn/l8r//79U/j+xbKqB/0vlr/xfKn8FH5vaFq6C0djYNAP/l8rXw2gYm+bg/1L50P9L5UPJ0QsAT6Jc/sVhar4AAAAASUVORK5CYII=" alt="Sunset"></dot-image>
+      <dot-image src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAQCAYAAAAFzx/vAAAAtklEQVR42mOUE8mzZ6AjYBFj/q5NVwvF2b9r0deHnPT2ITdpPmxf8k0MmV8Zw/WKFP2MfXaO/4lRWDgDv7L+DEbiLFzqbUHQwqhuDqIMW1b6g4g45P9OhFHEWUiMWYyXMtXw+lA3V4qkRHF58jMCPhT8TtVUSMg8FnEh6lpIsXn/l8r//79U/j+xbKqB/0vlr/xfKn8FH5vaFq6C0djYNAP/l8rXw2gYm+bg/1L50P9L5UPJ0QsAT6Jc/sVhar4AAAAASUVORK5CYII=" caption="Dusk"></dot-image>
+      <dot-image src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAQCAYAAAAFzx/vAAAAtklEQVR42mOUE8mzZ6AjYBFj/q5NVwvF2b9r0deHnPT2ITdpPmxf8k0MmV8Zw/WKFP2MfXaO/4lRWDgDv7L+DEbiLFzqbUHQwqhuDqIMW1b6g4g45P9OhFHEWUiMWYyXMtXw+lA3V4qkRHF58jMCPhT8TtVUSMg8FnEh6lpIsXn/l8r//79U/j+xbKqB/0vlr/xfKn8FH5vaFq6C0djYNAP/l8rXw2gYm+bg/1L50P9L5UPJ0QsAT6Jc/sVhar4AAAAASUVORK5CYII=" caption="Live" tone="ok"></dot-image>
+    </dot-grid>
+  </dot-panel>
+
   <dot-panel label="Icons" id="icons-panel">
     <dot-grid class="icons" id="icons"></dot-grid>
   </dot-panel>
@@ -220,10 +230,11 @@
       <dot-heading size="m">Embedded</dot-heading>
       <dot-text>Aligned to the grid of its own surface.</dot-text>
     </dot-matrix>
-    <p class="plain">A &lt;dot-tabbar&gt; outside the app is a plain row. Tabs with no label draw their icon at x2:</p>
+    <p class="plain">A &lt;dot-tabbar&gt; outside the app is a plain row. Tabs with no label draw their icon at a phone tab bar's size, in 9 x 9 art where it has some (home, matrix, server):</p>
     <dot-tabbar>
       <dot-tab icon="home" title="Home" current></dot-tab>
       <dot-tab icon="matrix" title="Panel"></dot-tab>
+      <dot-tab icon="server" title="Server"></dot-tab>
       <dot-tab icon="wifi" title="Network"></dot-tab>
     </dot-tabbar>
   </dot-panel>
