@@ -1,5 +1,5 @@
 /*!
- * Dotmatrix v0.12.0 - dot-matrix web components for LED panel control pages.
+ * Dotmatrix v0.13.0 - dot-matrix web components for LED panel control pages.
  * The page is one grid of dots, like the HUB75 panels it controls.
  * Surfaces: <dot-matrix>, <dot-app>
  * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-image>, <dot-marquee>
@@ -9,6 +9,7 @@
  * Slider, toggle, input and select take slot="label" children (a help button, a badge) on their label line.
  * A toggle with off-label and on-label switches between two named answers instead of On and Off.
  * <dot-image> draws a picture one dot per pixel, as a panel shows it, with an optional caption.
+ * A <dot-tab> with no label draws its icon at a phone tab bar's size: 9x9 art for home, matrix and server.
  * Colours: a palette of roles (--dot-title, --dot-label, --dot-value, --dot-edge, --dot-rule, ...) and five tones.
  * No dependencies. Drop in with <script src="dotmatrix.js"></script>
  */
@@ -123,6 +124,17 @@
     logout: '96,68,66,95,66,68,96'
   };
 
+  /* ------------------------------------------------------------------
+   * 9x9 art for a few icons, drawn by a tab with no label: there the
+   * icon is as big as a phone's own tab bar draws one, about 18 px,
+   * which the 7x7 art can't reach at a whole scale. Each row is a 9-bit
+   * number (256 = leftmost column).
+   * ------------------------------------------------------------------ */
+  const RAW_ICONS9 = {
+    home: '16,40,68,130,511,130,186,170,170', matrix: '341,0,341,0,341,0,341,0,341',
+    server: '511,257,261,511,0,511,257,261,511'
+  };
+
   const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
   const BIT = [16, 8, 4, 2, 1];
   const rows7 = s => s.split(',').map(Number).concat([0, 0]);
@@ -140,6 +152,8 @@
   }
   const ICON = Object.create(null);
   for (const k in RAW_ICONS) ICON[k] = RAW_ICONS[k].split(',').map(Number);
+  const ICON9 = Object.create(null);
+  for (const k in RAW_ICONS9) ICON9[k] = RAW_ICONS9[k].split(',').map(Number);
 
   /* ------------------------------------------------------------------
    * Accents are built, not drawn: normalize('NFD') splits a letter into
@@ -470,12 +484,13 @@
         for (let r = 0; r < 2; r++) if (col.t & (1 << r)) this.rect(x + i * k, y + (r - 2) * k, k, k, ink);
       });
     }
-    /** A 7x7 icon at scale k; flip draws it upside down. Unknown names draw `info`. */
-    icon(name, x, y, c, k = 1, flip = false) {
-      const rows = ICON[name] || ICON.info;
+    /** A 7x7 icon at scale k; flip draws it upside down. Unknown names draw `info`. With
+     *  set ICON9, its 9x9 art, which only a few icons have. */
+    icon(name, x, y, c, k = 1, flip = false, set = ICON) {
+      const rows = set[name] || ICON.info, n = rows.length;
       rows.forEach((row, r) => {
-        const ry = flip ? 6 - r : r;
-        for (let j = 0; j < 7; j++) if ((row >> (6 - j)) & 1) this.rect(x + j * k, y + ry * k, k, k, c);
+        const ry = flip ? n - 1 - r : r;
+        for (let j = 0; j < n; j++) if ((row >> (n - 1 - j)) & 1) this.rect(x + j * k, y + ry * k, k, k, c);
       });
     }
     /* Rounded rectangles in dots, the corners sampled at dot centres. */
@@ -2373,7 +2388,8 @@
    * label. A link with href, else a button. The `current` tab lights
    * up, its icon in a primary button's pill. It fills its share of the
    * bar, all of it a touch target. With an icon and no label, the icon
-   * draws at x2 in a taller pill, and its title names it.
+   * draws its 9x9 art (ICON9), where it has some, in a taller pill, at
+   * the size of a phone's own tab bar, and its title names it.
    * ================================================================== */
   class DotTab extends DotButton {
     static observedAttributes = [...DotButton.observedAttributes, 'current'];
@@ -2394,20 +2410,22 @@
     }
     _measure(wd) {
       this._cols = layout(this._chars, 'body');
-      // Without a label the icon takes the label's room: x2, and no label row.
-      const k = this._ik = !this._cols.length && this.getAttribute('icon') ? 2 : 1, n = 7 * k;
-      // The pill is twice as wide as it is tall, each side the icon's parity so it centres:
-      // odd around the 7-dot icon, even around the 14-dot one.
+      // Without a label the icon takes the label's room, and there's no label row. It draws as
+      // a phone's own tab bar draws one, about 18 px in a pill 32 px tall: its 9x9 art, where
+      // it has some. The 7x7 art at x2 came to 27 px, half again as big.
+      const icon = this.getAttribute('icon'), bare = !this._cols.length && !!icon;
+      const set = this._set = bare && ICON9[icon] ? ICON9 : ICON, n = this._n = set === ICON9 ? 9 : 7;
+      // The pill is twice as wide as it is tall, each side the icon's parity (odd) so it centres.
       const fit = v => ((v - n) % 2 ? v + 1 : v);
-      const H = this._ph = fit(Math.max(n + 2 * k, px(k === 2 ? 40 : 24))), pad = this._pad = px(8);
+      const H = this._ph = fit(Math.max(n + 2, px(bare ? 32 : 24))), pad = this._pad = px(8);
       this._gap = Math.max(2, px(4));
       this._pw = fit(2 * H);
-      if (k === 2) return { w: wd, h: pad + H + pad };
+      if (bare) return { w: wd, h: pad + H + pad };
       // The label's 9 rows leave room for descenders.
       return { w: wd, h: pad + H + this._gap + 9 + pad };
     }
     _draw(p) {
-      const w = this._sz.w, H = this._ph, W = this._pw, x = (w - W) >> 1, y = this._pad, k = this._ik, n = 7 * k;
+      const w = this._sz.w, H = this._ph, W = this._pw, x = (w - W) >> 1, y = this._pad, n = this._n;
       const cur = this.current, dis = this.disabled, down = this._down && !dis, hover = this._hover && !dis;
       let fill = cur ? ACCENT_DIM : 0, edge = cur ? ACCENT : 0, ink = FG, text = cur ? FG : MUTED;
       if (hover) { fill = cur ? ACCENT_MID : SHADE; text = FG; }
@@ -2416,14 +2434,14 @@
       if (fill) p.fillRound(x, y, W, H, H >> 1, fill);
       if (edge) p.strokeRound(x, y, W, H, H >> 1, edge);
       const icon = this.getAttribute('icon');
-      if (icon) p.icon(icon, (w - n) >> 1, y + ((H - n) >> 1), ink, k);
+      if (icon) p.icon(icon, (w - n) >> 1, y + ((H - n) >> 1), ink, 1, false, this._set);
       // Centred; a label wider than the tab loses its ends, since the painter stops at the edges.
       if (this._cols.length) p.text(this._cols, (w - this._cols.length) >> 1, y + H + this._gap, 1, text, text);
     }
   }
 
   window.Dotmatrix = {
-    version: '0.12.0',
+    version: '0.13.0',
     theme,
     glyph,
     layout,
