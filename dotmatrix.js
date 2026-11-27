@@ -1,13 +1,14 @@
 /*!
- * Dotmatrix v0.11.0 - dot-matrix web components for LED panel control pages.
+ * Dotmatrix v0.12.0 - dot-matrix web components for LED panel control pages.
  * The page is one grid of dots, like the HUB75 panels it controls.
  * Surfaces: <dot-matrix>, <dot-app>
- * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-marquee>
+ * Text:     <dot-heading>, <dot-text>, <dot-value>, <dot-icon>, <dot-image>, <dot-marquee>
  * Controls: <dot-button>, <dot-slider>, <dot-toggle>, <dot-input>, <dot-select>
  * Status:   <dot-led>, <dot-badge>, <dot-status>
  * Layout:   <dot-bar>, <dot-tabbar>, <dot-tab>, <dot-panel>, <dot-dialog>, <dot-grid>, <dot-rule>
  * Slider, toggle, input and select take slot="label" children (a help button, a badge) on their label line.
  * A toggle with off-label and on-label switches between two named answers instead of On and Off.
+ * <dot-image> draws a picture one dot per pixel, as a panel shows it, with an optional caption.
  * Colours: a palette of roles (--dot-title, --dot-label, --dot-value, --dot-edge, --dot-rule, ...) and five tones.
  * No dependencies. Drop in with <script src="dotmatrix.js"></script>
  */
@@ -982,6 +983,103 @@
   }
 
   /* ==================================================================
+   * <dot-image>: a picture drawn one dot per pixel, as an LED panel shows
+   * it (a team's logo, a frame of the panel). `src` is a PNG or any image
+   * the page may read: same origin, a data: URL, or CORS. A black or
+   * transparent pixel is an unlit dot; a dim one is screen-blended over
+   * the unlit dot, so faint edges fade into the grid instead of going
+   * darker than it. `alt` names it; without one it is decoration.
+   * `caption` adds a line in the capitals font, centred under it.
+   * `width` and `height`, in dots, hold its place until it loads.
+   * ================================================================== */
+  // Each picture is read once per page, however many elements show it: resolved URL -> its
+  // pixels (`done`), or the promise of them while it loads (`loading`). One that fails is
+  // forgotten, so the next element that asks tries again.
+  const PICS = { done: new Map(), loading: new Map() };
+  function picture(src) {
+    const url = new URL(src, document.baseURI), key = url.href;
+    let p = PICS.loading.get(key);
+    if (!p) {
+      const img = new Image();
+      // A same-origin request sends no CORS mode: a file:// page could not load its own images.
+      if (/^https?:$/.test(url.protocol) && url.origin !== location.origin) img.crossOrigin = 'anonymous';
+      img.src = key;
+      p = img.decode().then(() => {
+        const w = img.naturalWidth, h = img.naturalHeight, c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        const g = c.getContext('2d');
+        g.drawImage(img, 0, 0);
+        const pic = { w, h, d: g.getImageData(0, 0, w, h).data };
+        PICS.done.set(key, pic);
+        return pic;
+      }).catch(() => { PICS.loading.delete(key); return null; });
+      PICS.loading.set(key, p);
+    }
+    return { key, now: PICS.done.get(key) || null, later: p };
+  }
+  class DotImage extends DotElement {
+    static untoned = LABEL;
+    static observedAttributes = ['src', 'alt', 'caption', 'width', 'height', 'tone', 'accent'];
+    static css = ':host{display:inline-block;vertical-align:middle}';
+    static tpl = `<div class="i" part="image">${BOX}</div>`;
+    constructor() { super(); this._inline = true; this._pic = null; this._cap = []; }
+    _sync() {
+      const src = this.getAttribute('src') || '';
+      if (src !== this._src) {
+        this._src = src;
+        this._pic = null;
+        if (src) {
+          // A picture already read draws in this pass, so one swapped in by htmx never flashes empty.
+          const q = picture(src);
+          this._pic = q.now;
+          if (!q.now) q.later.then(pic => { if (this._src === src && pic) { this._pic = pic; this._dirty = true; schedule(); } });
+        }
+      }
+      const alt = this.getAttribute('alt') || '', cap = this.getAttribute('caption') || '', i = this.$('.i');
+      const name = alt || cap;
+      if (name) { i.setAttribute('role', 'img'); i.setAttribute('aria-label', name); i.removeAttribute('aria-hidden'); }
+      else { i.removeAttribute('role'); i.removeAttribute('aria-label'); i.setAttribute('aria-hidden', 'true'); }
+      this._cap = colsOf(cap, 'head');
+    }
+    _measure() {
+      const pic = this._pic, n = this._cap.length, dim = a => Math.max(0, parseInt(this.getAttribute(a), 10) || 0);
+      const iw = pic ? pic.w : dim('width'), ih = pic ? pic.h : dim('height'), w = Math.max(iw, n);
+      this._ix = (w - iw) >> 1;
+      this._cx = (w - n) >> 1;
+      this._cy = ih ? ih + 3 : 0;
+      return { w, h: n ? this._cy + 7 : ih };
+    }
+    _draw(p) { p.text(this._cap, this._cx, this._cy, 1, TONE); }
+    // The caption goes through the painter; the picture's colours are its own, not the palette's,
+    // so its dots are drawn onto the canvas afterwards, one path per colour.
+    _paint() {
+      super._paint();
+      const pic = this._pic;
+      if (!pic || !this._cv.width) return;
+      const cs = getComputedStyle(this), v = n => cs.getPropertyValue(n).trim();
+      const unlit = mix(rgb(v('--dot-fg'), '#F2F2EE'), rgb(v('--dot-bg'), '#000000'), G.unlit);
+      const P = G.pdp, d = G.dot, o = Math.floor((P - d) / 2), r = Math.max(0.5, d * 0.3);
+      const x0 = this._ix * P + o, y0 = this._over * P + o, px = pic.d, paths = new Map();
+      for (let y = 0; y < pic.h; y++) {
+        for (let x = 0; x < pic.w; x++) {
+          const i = (y * pic.w + x) * 4, a = px[i + 3] / 255;
+          // On the panel's black: what's left of the pixel lights the dot that much.
+          const c = [px[i] * a, px[i + 1] * a, px[i + 2] * a];
+          if (c[0] + c[1] + c[2] < 3) continue;
+          const col = hex(c.map((s, k) => 255 - (255 - unlit[k]) * (255 - s) / 255));
+          let path = paths.get(col);
+          if (!path) paths.set(col, path = new Path2D());
+          if (path.roundRect) path.roundRect(x0 + x * P, y0 + y * P, d, d, r);
+          else path.rect(x0 + x * P, y0 + y * P, d, d);
+        }
+      }
+      const g = this._cv.getContext('2d');
+      for (const [col, path] of paths) { g.fillStyle = col; g.fill(path); }
+    }
+  }
+
+  /* ==================================================================
    * <dot-marquee>: text moving right to left through a framed window,
    * one dot per step, like a message on the panel. It starts at the
    * left, scrolls off, and comes back in from the right. Capitals at x2
@@ -1943,7 +2041,7 @@
     :host([cols="4"]){--_n:4} :host([cols="5"]){--_n:5} :host([cols="6"]){--_n:6}
     :host([row]){display:flex;flex-wrap:wrap;align-items:center;gap:var(--dot-gap,calc(var(--dot-pitch,2px) * 5))}
     /* Block components (text, sliders...) have no natural width: in a row they share what is left. */
-    :host([row]) ::slotted(:not(dot-button):not(dot-icon):not(dot-led):not(dot-badge):not(dot-status)){flex:1 1 10em;min-width:0}
+    :host([row]) ::slotted(:not(dot-button):not(dot-icon):not(dot-image):not(dot-led):not(dot-badge):not(dot-status)){flex:1 1 10em;min-width:0}
   `;
   class DotGrid extends HTMLElement {
     constructor() { super(); this.attachShadow({ mode: 'open' }).innerHTML = `<style>${GRID_CSS}</style><slot></slot>`; }
@@ -2325,7 +2423,7 @@
   }
 
   window.Dotmatrix = {
-    version: '0.11.0',
+    version: '0.12.0',
     theme,
     glyph,
     layout,
@@ -2351,6 +2449,7 @@
   define('dot-rule', DotRule);
   define('dot-value', DotValue);
   define('dot-icon', DotIcon);
+  define('dot-image', DotImage);
   define('dot-marquee', DotMarquee);
   define('dot-button', DotButton);
   define('dot-slider', DotSlider);
